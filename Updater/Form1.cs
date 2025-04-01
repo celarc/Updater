@@ -102,7 +102,7 @@ namespace Updater
         {
             percent = 0;
             lendth = 0; 
-            i = 1;
+            i = 0;
             simpleButton1.Enabled = false;
             progressBarControl1.Properties.Step = 1;
             progressBarControl1.Properties.PercentView = true;
@@ -118,7 +118,7 @@ namespace Updater
         {
             percent = 0;
             lendth = 0;
-            i = 1;
+            i = 0;
             simpleButton2.Enabled = false;
             progressBarControl2.Properties.Step = 1;
             progressBarControl2.Properties.PercentView = true;
@@ -196,7 +196,7 @@ namespace Updater
                     RemoteDirectoryInfo directoryInfo = session.ListDirectory(remotePath);
                     lendth = directoryInfo.Files.Count;
 
-                    downloadFiles(directoryInfo,session,localPath,remotePath,backgroundWorker);
+                    downloadFiles(directoryInfo,session,localPath,remotePath,backgroundWorker,true);
 
                     // Select the most recent file
 
@@ -208,20 +208,21 @@ namespace Updater
 
                 }
             }
-            catch (Exception ex) { backgroundWorker.ReportProgress(-1, ex); }
+            catch (Exception ex) 
+            { 
+                backgroundWorker.ReportProgress(-1, ex); 
+            }
         }
 
-        private bool rootLevel = true;
-        private void downloadFiles(RemoteDirectoryInfo directoryInfo, Session session, string localPath, string remotePath, BackgroundWorker backgroundWorker)
+
+        private void downloadFiles(RemoteDirectoryInfo directoryInfo, Session session, string localPath, string remotePath, BackgroundWorker backgroundWorker, bool rootLevel)
         {
             
             foreach (RemoteFileInfo rfi in directoryInfo.Files)
             {
                 if (rfi.IsDirectory && rfi.Name.Replace(".", "").Length > 0)
                 {
-                    rootLevel = false;
-                    downloadFiles(session.ListDirectory(remotePath + rfi.Name + "/"), session,localPath + rfi.Name + "\\", remotePath + rfi.Name + "/", backgroundWorker);
-                    rootLevel = true;
+                    downloadFiles(session.ListDirectory(remotePath + rfi.Name + "/"), session,localPath + rfi.Name + "\\", remotePath + rfi.Name + "/", backgroundWorker,false);
                 }
                 else
                 {//MessageBox.Show(rfi.Name + " " + rfi.LastWriteTime + " Time local: " + System.IO.File.GetLastWriteTime(localPath + rfi.Name) + "     Type:" + rfi.FileType);
@@ -236,12 +237,12 @@ namespace Updater
                             autoUpdateLog += "Prenos datoteke " + transfer.FileName + " uspešen." + Environment.NewLine;
                         }
                     }
+                }
 
-                    if (rootLevel)
-                    {
-                        i++;
-                        backgroundWorker.ReportProgress(Convert.ToInt32((i / lendth) * 100));
-                    }
+                if (rootLevel)
+                {
+                    i++;
+                    backgroundWorker.ReportProgress(Convert.ToInt32((i / lendth) * 100));
                 }
             }
         }
@@ -293,7 +294,6 @@ namespace Updater
             var backgroundWorker = sender as BackgroundWorker;
             try
             {
-
                 string url = "bmc.si", username = "updater@bmc.si", password = "fcc1b727289ac03db7e76f6291039923";
 
                 SessionOptions sessionOptions = new SessionOptions
@@ -313,33 +313,11 @@ namespace Updater
                     string remotePath = @"/6/";
                     RemoteDirectoryInfo directoryInfo = session.ListDirectory(remotePath);
 
-                    double lendth = directoryInfo.Files.Count, i = 0;
+                lendth = directoryInfo.Files.Count;
+                int i = 0;
 
 
-                    // Select the most recent file
-                    foreach (RemoteFileInfo rfi in directoryInfo.Files)
-                    {
-                        //MessageBox.Show(rfi.Name + " " + rfi.LastWriteTime + " Time local: " + System.IO.File.GetLastWriteTime(localPath + rfi.Name) + "     Type:" + rfi.FileType);
-                        if (rfi.LastWriteTime != System.IO.File.GetLastWriteTime(localPath + rfi.Name) && rfi.Name.Replace(".", "").Length > 0 && rfi.Name.Split('.').Last() != "fdb" && rfi.Name.Split('.').Last() != "FDB")
-                        {
-                            string sourcePath = RemotePath.EscapeFileMask(remotePath + rfi.Name);
-                            TransferOperationResult transferResult = session.GetFiles(sourcePath, localPath);
-                            transferResult.Check();
-
-                            foreach (TransferEventArgs transfer in transferResult.Transfers)
-                            {
-                                autoUpdateWebLog += "Prenos datoteke " + transfer.FileName + " uspešen." + Environment.NewLine;
-                            }
-                        }
-                        i++;
-                        backgroundWorker.ReportProgress(Convert.ToInt32((i / lendth) * 100));
-                    }
-
-                    //RemoteFileInfo latest = directoryInfo.Files.OrderByDescending(file => file.LastWriteTime).First();
-
-                    // Download the selected file
-
-
+                    downloadFiles(directoryInfo, session, localPath, remotePath, backgroundWorker, true);
                 }
             }
             catch (Exception ex) { backgroundWorker.ReportProgress(-1, ex); }
