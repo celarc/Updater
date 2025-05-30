@@ -24,11 +24,16 @@ namespace Updater
         private int percent = 0;
         private bool autoUpdate = false;
         private string autoUpdateLog = "", autoUpdateWebLog = "";
+
+        private double betaTotalFiles = 0, betaFileIndex = 0;
+        private int betaPercent = 0;
+
         public Form1()
         {
             InitializeComponent();
             initPath();
         }
+
         private void Form1_Load(object sender, EventArgs e)
         {
             string[] ukazCMD = Environment.GetCommandLineArgs();
@@ -98,10 +103,39 @@ namespace Updater
             }
             catch { }
         }
+
+        private void simpleButtonBeta_Click(object sender, EventArgs e)
+        {
+            var warningText =
+                "To je BETA različica posodobitve. Nekatere funkcije morda ne bodo delovale pravilno.\n\n" +
+                "Želite vseeno nadaljevati?";
+            var warningResult = MessageBox.Show(
+                warningText,
+                "Opozorilo – BETA",
+                MessageBoxButtons.OKCancel,
+                MessageBoxIcon.Warning,
+                MessageBoxDefaultButton.Button2);
+            if (warningResult != DialogResult.OK) return;
+
+            if (Process.GetProcessesByName("BMC").Any())
+            {
+                MessageBox.Show("Zaprite vse odprte BMC programe!");
+                return;
+            }
+
+            simpleButtonBeta.Enabled = false;
+            progressBarControlBeta.EditValue = 0;
+            betaFileIndex = 0;
+            betaTotalFiles = 0;
+            betaPercent = 0;
+            backgroundWorker3.RunWorkerAsync();
+        }
+
+
         private void getFromFTP()
         {
             percent = 0;
-            lendth = 0; 
+            lendth = 0;
             i = 0;
             simpleButton1.Enabled = false;
             progressBarControl1.Properties.Step = 1;
@@ -196,33 +230,91 @@ namespace Updater
                     RemoteDirectoryInfo directoryInfo = session.ListDirectory(remotePath);
                     lendth = directoryInfo.Files.Count;
 
-                    downloadFiles(directoryInfo,session,localPath,remotePath,backgroundWorker,true);
-
-                    // Select the most recent file
-
-
-                    //RemoteFileInfo latest = directoryInfo.Files.OrderByDescending(file => file.LastWriteTime).First();
-
-                    // Download the selected file
-
-
+                    downloadFiles(directoryInfo, session, localPath, remotePath, backgroundWorker, true);
                 }
             }
-            catch (Exception ex) 
-            { 
-                backgroundWorker.ReportProgress(-1, ex); 
+            catch (Exception ex)
+            {
+                backgroundWorker.ReportProgress(-1, ex);
+            }
+        }
+
+        private void backgroundWorker3_DoWork(object sender, DoWorkEventArgs e)
+        {
+            var backgroundWorker = sender as BackgroundWorker;
+            try
+            {
+
+                string url = "bmc.si", username = "updater@bmc.si", password = "fcc1b727289ac03db7e76f6291039923";
+
+                SessionOptions sessionOptions = new SessionOptions
+                {
+                    Protocol = Protocol.Ftp,
+                    HostName = url,
+                    UserName = username,
+                    Password = password,
+                };
+
+                using (Session session = new Session())
+                {
+                    string localPath = potBMC;
+                    session.Open(sessionOptions);
+
+                    string remotePath = @"/BETA/";
+                    RemoteDirectoryInfo directoryInfo = session.ListDirectory(remotePath);
+                    lendth = directoryInfo.Files.Count;
+
+                    downloadFiles(directoryInfo, session, localPath, remotePath, backgroundWorker, true);
+                }
+            }
+            catch (Exception ex)
+            {
+                backgroundWorker.ReportProgress(-1, ex);
+            }
+        }
+
+        private void backgroundWorker3_ProgressChanged(object sender, ProgressChangedEventArgs e)
+        {
+            if (e.ProgressPercentage < 0)
+            {
+                var ex = (Exception)e.UserState;
+                MessageBox.Show(ex.ToString());
+            }
+            else
+            {
+                progressBarControlBeta.EditValue = e.ProgressPercentage;
+                percent = e.ProgressPercentage;
+            }
+        }
+
+
+        private void backgroundWorker3_RunWorkerCompleted(object sender, RunWorkerCompletedEventArgs e)
+        {
+            simpleButtonBeta.Enabled = true;
+
+            if (e.Error != null)
+            {
+                MessageBox.Show("Prišlo je do napake: " + e.Error.Message);
+            }
+            else if (e.Cancelled)
+            {
+                MessageBox.Show("Prenos je bil preklican.");
+            }
+            else
+            {
+                MessageBox.Show("Prenos BETA aplikacije končan!");
             }
         }
 
 
         private void downloadFiles(RemoteDirectoryInfo directoryInfo, Session session, string localPath, string remotePath, BackgroundWorker backgroundWorker, bool rootLevel)
         {
-            
+
             foreach (RemoteFileInfo rfi in directoryInfo.Files)
             {
                 if (rfi.IsDirectory && rfi.Name.Replace(".", "").Length > 0)
                 {
-                    downloadFiles(session.ListDirectory(remotePath + rfi.Name + "/"), session,localPath + rfi.Name + "\\", remotePath + rfi.Name + "/", backgroundWorker,false);
+                    downloadFiles(session.ListDirectory(remotePath + rfi.Name + "/"), session, localPath + rfi.Name + "\\", remotePath + rfi.Name + "/", backgroundWorker, false);
                 }
                 else
                 {//MessageBox.Show(rfi.Name + " " + rfi.LastWriteTime + " Time local: " + System.IO.File.GetLastWriteTime(localPath + rfi.Name) + "     Type:" + rfi.FileType);
@@ -313,8 +405,8 @@ namespace Updater
                     string remotePath = @"/6/";
                     RemoteDirectoryInfo directoryInfo = session.ListDirectory(remotePath);
 
-                lendth = directoryInfo.Files.Count;
-                int i = 0;
+                    lendth = directoryInfo.Files.Count;
+                    int i = 0;
 
 
                     downloadFiles(directoryInfo, session, localPath, remotePath, backgroundWorker, true);
