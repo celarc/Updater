@@ -25,12 +25,10 @@ namespace Updater
         private bool autoUpdate = false;
         private string autoUpdateLog = "", autoUpdateWebLog = "";
 
-        private double betaTotalFiles = 0, betaFileIndex = 0;
-        private int betaPercent = 0;
-
         public Form1()
         {
             InitializeComponent();
+            panel1.Visible = false;
             initPath();
         }
 
@@ -74,6 +72,10 @@ namespace Updater
                     backgroundWorker2.RunWorkerAsync();
                 }
                 catch { this.Close(); }
+            }
+            else if(ukazCMD.Contains("updateBETA"))
+            {
+                panel1.Visible = true;
             }
         }
         private void initPath()
@@ -125,9 +127,6 @@ namespace Updater
 
             simpleButtonBeta.Enabled = false;
             progressBarControlBeta.EditValue = 0;
-            betaFileIndex = 0;
-            betaTotalFiles = 0;
-            betaPercent = 0;
             backgroundWorker3.RunWorkerAsync();
         }
 
