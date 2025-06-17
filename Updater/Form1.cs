@@ -35,6 +35,9 @@ namespace Updater
         private void Form1_Load(object sender, EventArgs e)
         {
             string[] ukazCMD = Environment.GetCommandLineArgs();
+            var cmd = ukazCMD.ToList();
+            cmd.Add("updateBeta");
+            ukazCMD = cmd.ToArray(); // za testiranje, da se lahko sproži BETA posodobitev
             if (ukazCMD.Contains("updateBMC"))
             {
                 try
@@ -73,10 +76,7 @@ namespace Updater
                 }
                 catch { this.Close(); }
             }
-            else if(ukazCMD.Contains("updateBETA"))
-            {
-                panel1.Visible = true;
-            }
+            if (ukazCMD.Contains("updateBETA")) { panel1.Visible = true; }
         }
         private void initPath()
         {
