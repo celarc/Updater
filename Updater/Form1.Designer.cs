@@ -39,12 +39,14 @@
             this.label3 = new System.Windows.Forms.Label();
             this.backgroundWorker2 = new System.ComponentModel.BackgroundWorker();
             this.progressBarControlBeta = new DevExpress.XtraEditors.ProgressBarControl();
-            this.label6 = new System.Windows.Forms.Label();
-            this.simpleButtonBeta = new DevExpress.XtraEditors.SimpleButton();
+            this.labelBeta = new System.Windows.Forms.Label();
+            this.downloadBetaBt = new DevExpress.XtraEditors.SimpleButton();
             this.panel1 = new System.Windows.Forms.Panel();
-            this.label4 = new System.Windows.Forms.Label();
+            this.selectBetaVersionBt = new DevExpress.XtraEditors.SimpleButton();
+            this.labelBetaBMC = new System.Windows.Forms.Label();
             this.backgroundWorker3 = new System.ComponentModel.BackgroundWorker();
             this.backgroundWorker4 = new System.ComponentModel.BackgroundWorker();
+            this.labelCurrentVerzija = new System.Windows.Forms.Label();
             ((System.ComponentModel.ISupportInitialize)(this.progressBarControl1.Properties)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.progressBarControl2.Properties)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.progressBarControlBeta.Properties)).BeginInit();
@@ -137,53 +139,64 @@
             // 
             // progressBarControlBeta
             // 
-            this.progressBarControlBeta.Location = new System.Drawing.Point(112, 48);
+            this.progressBarControlBeta.Location = new System.Drawing.Point(74, 48);
             this.progressBarControlBeta.Name = "progressBarControlBeta";
             this.progressBarControlBeta.Properties.EndColor = System.Drawing.Color.Lime;
             this.progressBarControlBeta.Properties.LookAndFeel.UseDefaultLookAndFeel = false;
             this.progressBarControlBeta.Properties.StartColor = System.Drawing.Color.Green;
-            this.progressBarControlBeta.Size = new System.Drawing.Size(345, 27);
+            this.progressBarControlBeta.Size = new System.Drawing.Size(326, 27);
             this.progressBarControlBeta.TabIndex = 11;
             // 
-            // label6
+            // labelBeta
             // 
-            this.label6.Font = new System.Drawing.Font("Microsoft Sans Serif", 15.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(238)));
-            this.label6.Location = new System.Drawing.Point(16, 10);
-            this.label6.Name = "label6";
-            this.label6.Size = new System.Drawing.Size(201, 25);
-            this.label6.TabIndex = 9;
-            this.label6.Text = "BETA posodobitve";
-            this.label6.UseCompatibleTextRendering = true;
+            this.labelBeta.Font = new System.Drawing.Font("Microsoft Sans Serif", 15.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(238)));
+            this.labelBeta.Location = new System.Drawing.Point(16, 10);
+            this.labelBeta.Name = "labelBeta";
+            this.labelBeta.Size = new System.Drawing.Size(201, 25);
+            this.labelBeta.TabIndex = 9;
+            this.labelBeta.Text = "BETA posodobitve";
+            this.labelBeta.UseCompatibleTextRendering = true;
             // 
-            // simpleButtonBeta
+            // downloadBetaBt
             // 
-            this.simpleButtonBeta.ImageOptions.Image = ((System.Drawing.Image)(resources.GetObject("simpleButtonBeta.ImageOptions.Image")));
-            this.simpleButtonBeta.Location = new System.Drawing.Point(463, 48);
-            this.simpleButtonBeta.Name = "simpleButtonBeta";
-            this.simpleButtonBeta.Size = new System.Drawing.Size(129, 27);
-            this.simpleButtonBeta.TabIndex = 8;
-            this.simpleButtonBeta.Text = "Preveri posodobitve";
-            this.simpleButtonBeta.Click += new System.EventHandler(this.simpleButtonBeta_Click);
+            this.downloadBetaBt.ImageOptions.Image = ((System.Drawing.Image)(resources.GetObject("downloadBetaBt.ImageOptions.Image")));
+            this.downloadBetaBt.Location = new System.Drawing.Point(406, 48);
+            this.downloadBetaBt.Name = "downloadBetaBt";
+            this.downloadBetaBt.Size = new System.Drawing.Size(186, 27);
+            this.downloadBetaBt.TabIndex = 8;
+            this.downloadBetaBt.Text = "Prenesi najnovejše posodobitve";
+            this.downloadBetaBt.Click += new System.EventHandler(this.simpleButtonBeta_Click);
             // 
             // panel1
             // 
-            this.panel1.Controls.Add(this.label4);
+            this.panel1.Controls.Add(this.selectBetaVersionBt);
+            this.panel1.Controls.Add(this.labelBetaBMC);
             this.panel1.Controls.Add(this.progressBarControlBeta);
-            this.panel1.Controls.Add(this.simpleButtonBeta);
-            this.panel1.Controls.Add(this.label6);
+            this.panel1.Controls.Add(this.downloadBetaBt);
+            this.panel1.Controls.Add(this.labelBeta);
             this.panel1.Location = new System.Drawing.Point(-6, 242);
             this.panel1.Name = "panel1";
             this.panel1.Size = new System.Drawing.Size(609, 95);
             this.panel1.TabIndex = 15;
             // 
-            // label4
+            // selectBetaVersionBt
             // 
-            this.label4.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(238)));
-            this.label4.Location = new System.Drawing.Point(17, 50);
-            this.label4.Name = "label4";
-            this.label4.Size = new System.Drawing.Size(51, 21);
-            this.label4.TabIndex = 12;
-            this.label4.Text = "BMC";
+            this.selectBetaVersionBt.ImageOptions.Image = ((System.Drawing.Image)(resources.GetObject("selectBetaVersionBt.ImageOptions.Image")));
+            this.selectBetaVersionBt.Location = new System.Drawing.Point(406, 14);
+            this.selectBetaVersionBt.Name = "selectBetaVersionBt";
+            this.selectBetaVersionBt.Size = new System.Drawing.Size(186, 23);
+            this.selectBetaVersionBt.TabIndex = 13;
+            this.selectBetaVersionBt.Text = "Izberi verzijo za prenos";
+            this.selectBetaVersionBt.Click += new System.EventHandler(this.simpleButton3_Click);
+            // 
+            // labelBetaBMC
+            // 
+            this.labelBetaBMC.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(238)));
+            this.labelBetaBMC.Location = new System.Drawing.Point(17, 50);
+            this.labelBetaBMC.Name = "labelBetaBMC";
+            this.labelBetaBMC.Size = new System.Drawing.Size(51, 21);
+            this.labelBetaBMC.TabIndex = 12;
+            this.labelBetaBMC.Text = "BMC";
             // 
             // backgroundWorker3
             // 
@@ -192,11 +205,22 @@
             this.backgroundWorker3.ProgressChanged += new System.ComponentModel.ProgressChangedEventHandler(this.backgroundWorker3_ProgressChanged);
             this.backgroundWorker3.RunWorkerCompleted += new System.ComponentModel.RunWorkerCompletedEventHandler(this.backgroundWorker3_RunWorkerCompleted);
             // 
+            // labelCurrentVerzija
+            // 
+            this.labelCurrentVerzija.AutoSize = true;
+            this.labelCurrentVerzija.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Italic, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.labelCurrentVerzija.Location = new System.Drawing.Point(87, 7);
+            this.labelCurrentVerzija.Name = "labelCurrentVerzija";
+            this.labelCurrentVerzija.Size = new System.Drawing.Size(121, 20);
+            this.labelCurrentVerzija.TabIndex = 16;
+            this.labelCurrentVerzija.Text = "Trenutna verzija";
+            // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(598, 338);
+            this.Controls.Add(this.labelCurrentVerzija);
             this.Controls.Add(this.panel1);
             this.Controls.Add(this.label3);
             this.Controls.Add(this.progressBarControl2);
@@ -230,12 +254,14 @@
         private System.Windows.Forms.Label label3;
         private System.ComponentModel.BackgroundWorker backgroundWorker2;
         private DevExpress.XtraEditors.ProgressBarControl progressBarControlBeta;
-        private System.Windows.Forms.Label label6;
-        private DevExpress.XtraEditors.SimpleButton simpleButtonBeta;
+        private System.Windows.Forms.Label labelBeta;
+        private DevExpress.XtraEditors.SimpleButton downloadBetaBt;
         private System.Windows.Forms.Panel panel1;
         private System.ComponentModel.BackgroundWorker backgroundWorker3;
         private System.ComponentModel.BackgroundWorker backgroundWorker4;
-        private System.Windows.Forms.Label label4;
+        private System.Windows.Forms.Label labelBetaBMC;
+        private DevExpress.XtraEditors.SimpleButton selectBetaVersionBt;
+        private System.Windows.Forms.Label labelCurrentVerzija;
     }
 }
 

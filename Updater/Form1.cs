@@ -9,6 +9,7 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.Xml;
@@ -35,9 +36,6 @@ namespace Updater
         private void Form1_Load(object sender, EventArgs e)
         {
             string[] ukazCMD = Environment.GetCommandLineArgs();
-            var cmd = ukazCMD.ToList();
-            cmd.Add("updateBeta");
-            ukazCMD = cmd.ToArray(); // za testiranje, da se lahko sproži BETA posodobitev
             if (ukazCMD.Contains("updateBMC"))
             {
                 try
@@ -76,8 +74,13 @@ namespace Updater
                 }
                 catch { this.Close(); }
             }
-            if (ukazCMD.Contains("updateBETA")) { panel1.Visible = true; }
+            /*if (ukazCMD.Contains("updateBETA")) {*/
+            panel1.Visible = true; /*}*/
+
+            var trenutniBMC = FileVersionInfo.GetVersionInfo((Path.Combine(potBMC, "BMC.exe")));
+            labelCurrentVerzija.Text +=  " " + trenutniBMC.FileVersion;
         }
+
         private void initPath()
         {
             try
@@ -106,28 +109,63 @@ namespace Updater
             catch { }
         }
 
+        //private void simpleButtonBeta_Click(object sender, EventArgs e)
+        //{
+        //    var warningText =
+        //        "To je BETA različica posodobitve. Nekatere funkcije morda ne bodo delovale pravilno.\n\n" +
+        //        "Želite vseeno nadaljevati?";
+        //    var warningResult = MessageBox.Show(
+        //        warningText,
+        //        "Opozorilo – BETA",
+        //        MessageBoxButtons.OKCancel,
+        //        MessageBoxIcon.Warning,
+        //        MessageBoxDefaultButton.Button2);
+        //    if (warningResult != DialogResult.OK) return;
+
+        //    if (Process.GetProcessesByName("BMC").Any())
+        //    {
+        //        MessageBox.Show("Zaprite vse odprte BMC programe!");
+        //        return;
+        //    }
+
+        //    downloadBetaBt.Enabled = false;
+        //    progressBarControlBeta.EditValue = 0;
+        //    backgroundWorker3.RunWorkerAsync();
+        //}
+
         private void simpleButtonBeta_Click(object sender, EventArgs e)
         {
-            var warningText =
-                "To je BETA različica posodobitve. Nekatere funkcije morda ne bodo delovale pravilno.\n\n" +
-                "Želite vseeno nadaljevati?";
-            var warningResult = MessageBox.Show(
-                warningText,
-                "Opozorilo – BETA",
-                MessageBoxButtons.OKCancel,
-                MessageBoxIcon.Warning,
-                MessageBoxDefaultButton.Button2);
-            if (warningResult != DialogResult.OK) return;
-
             if (Process.GetProcessesByName("BMC").Any())
             {
                 MessageBox.Show("Zaprite vse odprte BMC programe!");
                 return;
             }
 
-            simpleButtonBeta.Enabled = false;
+            string version = labelBeta.Text;
+
+            downloadBetaBt.Enabled = false;
             progressBarControlBeta.EditValue = 0;
-            backgroundWorker3.RunWorkerAsync();
+            backgroundWorker3.RunWorkerAsync(version);
+        }
+
+        private void backgroundWorker3_DoWork(object sender, DoWorkEventArgs e)
+        {
+            var backgroundWorker = sender as BackgroundWorker;
+            try
+            {
+                var version = e.Argument as string;
+                
+
+                var progress = new Progress<int>(percent =>
+                {
+                    backgroundWorker.ReportProgress(percent);
+                });
+
+            }
+            catch (Exception ex)
+            {
+                backgroundWorker.ReportProgress(-1, ex);
+            }
         }
 
 
@@ -238,39 +276,39 @@ namespace Updater
             }
         }
 
-        private void backgroundWorker3_DoWork(object sender, DoWorkEventArgs e)
-        {
-            var backgroundWorker = sender as BackgroundWorker;
-            try
-            {
+        //private void backgroundWorker3_DoWork(object sender, DoWorkEventArgs e)
+        //{
+        //    var backgroundWorker = sender as BackgroundWorker;
+        //    try
+        //    {
 
-                string url = "bmc.si", username = "updater@bmc.si", password = "fcc1b727289ac03db7e76f6291039923";
+        //        string url = "bmc.si", username = "updater@bmc.si", password = "fcc1b727289ac03db7e76f6291039923";
 
-                SessionOptions sessionOptions = new SessionOptions
-                {
-                    Protocol = Protocol.Ftp,
-                    HostName = url,
-                    UserName = username,
-                    Password = password,
-                };
+        //        SessionOptions sessionOptions = new SessionOptions
+        //        {
+        //            Protocol = Protocol.Ftp,
+        //            HostName = url,
+        //            UserName = username,
+        //            Password = password,
+        //        };
 
-                using (Session session = new Session())
-                {
-                    string localPath = potBMC;
-                    session.Open(sessionOptions);
+        //        using (Session session = new Session())
+        //        {
+        //            string localPath = potBMC;
+        //            session.Open(sessionOptions);
 
-                    string remotePath = @"/BETA/";
-                    RemoteDirectoryInfo directoryInfo = session.ListDirectory(remotePath);
-                    lendth = directoryInfo.Files.Count;
+        //            string remotePath = @"/BETA/";
+        //            RemoteDirectoryInfo directoryInfo = session.ListDirectory(remotePath);
+        //            lendth = directoryInfo.Files.Count;
 
-                    downloadFiles(directoryInfo, session, localPath, remotePath, backgroundWorker, true);
-                }
-            }
-            catch (Exception ex)
-            {
-                backgroundWorker.ReportProgress(-1, ex);
-            }
-        }
+        //            downloadFiles(directoryInfo, session, localPath, remotePath, backgroundWorker, true);
+        //        }
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        backgroundWorker.ReportProgress(-1, ex);
+        //    }
+        //}
 
         private void backgroundWorker3_ProgressChanged(object sender, ProgressChangedEventArgs e)
         {
@@ -289,7 +327,7 @@ namespace Updater
 
         private void backgroundWorker3_RunWorkerCompleted(object sender, RunWorkerCompletedEventArgs e)
         {
-            simpleButtonBeta.Enabled = true;
+            downloadBetaBt.Enabled = true;
 
             if (e.Error != null)
             {
@@ -377,6 +415,35 @@ namespace Updater
                 if (percent != 100) MessageBox.Show("Med prenosom je prišlo do napake. Preverite internetno povezavo in preverite če je kje še kje odprt BMC program.");
                 else MessageBox.Show("Prenos končan!");
                 simpleButton1.Enabled = true;
+            }
+        }
+
+        private async void simpleButton3_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                var updater = new GitHubUpdater();
+                var versions = await updater.GetReleases();
+
+                using (var versionForm = new VerzijeGrid(versions))
+                {
+                    if (versionForm.ShowDialog() == DialogResult.OK && versionForm.SelectedRelease != null)
+                    {
+                        XtraMessageBox.Show($"Selected version: {versionForm.SelectedRelease.Verzija}",
+                            "Version Selected",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Information);
+                        var selected = versionForm.SelectedRelease.Verzija;
+                        this.labelBeta.Text = selected;
+                        var tab = downloadBetaBt.Text.Split(' ');
+                        downloadBetaBt.Text = $"{tab[0]} {selected}";
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                XtraMessageBox.Show($"Error loading releases: {ex.Message}", "Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
