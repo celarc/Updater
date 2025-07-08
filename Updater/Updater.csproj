@@ -105,15 +105,23 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Configuration\UpdaterConfig.cs" />
     <Compile Include="DownloadException.cs" />
     <Compile Include="IDownloadService.cs" />
+    <Compile Include="Models\VersionInfo.cs" />
+    <Compile Include="Models\UpdateProgress.cs" />
+    <Compile Include="Models\UpdateResult.cs" />
+    <Compile Include="Services\GitHubUpdateService.cs" />
+    <Compile Include="Services\FtpUpdateService.cs" />
+    <Compile Include="Services\UpdateManager.cs" />
+    <Compile Include="Services\IUpdateService.cs" />
     <Compile Include="VerzijeGrid.cs">
       <SubType>Form</SubType>
     </Compile>
     <Compile Include="VerzijeGrid.Designer.cs">
       <DependentUpon>VerzijeGrid.cs</DependentUpon>
     </Compile>
-    <Compile Include="GithubRelease.cs" />
+    <Compile Include="Services\GitHubUpdater.cs" />
     <Compile Include="Form1.cs">
       <SubType>Form</SubType>
     </Compile>

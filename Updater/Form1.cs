@@ -1,524 +1,412 @@
-﻿using DevExpress.XtraEditors;
+﻿// Form1.cs - Refactored for C# 7.3 with GitHub Integration
 using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
-using System.Diagnostics;
-using System.Drawing;
-using System.IO;
 using System.Linq;
-using System.Net;
-using System.Text;
-using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-using System.Xml;
-using WinSCP;
-using static System.Net.WebRequestMethods;
+using DevExpress.XtraEditors;
+using Updater.Services;
+using Updater.Models;
 
 namespace Updater
 {
-
     public partial class Form1 : Form
     {
-        private string potBMC = @"C:\BMC\", potWebParam = @"C:\inetpub\WebParam\";
-        private int percent = 0;
-        private bool autoUpdate = false;
-        private string autoUpdateLog = "", autoUpdateWebLog = "";
+        private readonly UpdateManager _updateManager;
+        private readonly CommandLineHandler _commandLineHandler;
+        private GitHubRelease _selectedBetaRelease;
+        private GitHubRelease _selectedStableRelease;
+        private VersionInfo _currentVersion;
 
         public Form1()
         {
             InitializeComponent();
-            panel1.Visible = false;
-            initPath();
+            _updateManager = new UpdateManager();
+            _commandLineHandler = new CommandLineHandler();
+            InitializeForm();
         }
 
-        private void Form1_Load(object sender, EventArgs e)
+        private async void Form1_Load(object sender, EventArgs e)
         {
-            string[] ukazCMD = Environment.GetCommandLineArgs();
-            if (ukazCMD.Contains("updateBMC"))
-            {
-                try
-                {
-                    autoUpdateLog += "Začetek avtomatske posodobitve ob " + DateTime.Now.ToString("dd.MM.yyyy HH:mm:ss") + Environment.NewLine;
-                    Process[] processes = Process.GetProcessesByName("BMC");
-                    int i = 0;
-                    foreach (var process in processes)
-                    {
-                        i++;
-                        process.Kill();
-                    }
-                    if (i > 0) autoUpdateLog += "Pred prenosom podatkov sem zaustavil odprete programe, število odprtih programov je bilo: " + i + Environment.NewLine;
-                    autoUpdate = true;
-                    autoUpdateLog += "Začetek prenosa podatkov" + Environment.NewLine;
-                    backgroundWorker1.RunWorkerAsync();
-                }
-                catch { this.Close(); }
-            }
-            if (ukazCMD.Contains("updateWebParam"))
-            {
-                try
-                {
-                    autoUpdateLog += "Začetek avtomatske posodobitve ob " + DateTime.Now.ToString("dd.MM.yyyy HH:mm:ss") + Environment.NewLine;
-                    Process[] processes = Process.GetProcessesByName("WebParam");
-                    int i = 0;
-                    foreach (var process in processes)
-                    {
-                        i++;
-                        process.Kill();
-                    }
-                    if (i > 0) autoUpdateLog += "Pred prenosom podatkov sem zaustavil odprete programe, število odprtih programov je bilo: " + i + Environment.NewLine;
-                    autoUpdate = true;
-                    autoUpdateLog += "Začetek prenosa podatkov" + Environment.NewLine;
-                    backgroundWorker2.RunWorkerAsync();
-                }
-                catch { this.Close(); }
-            }
-            /*if (ukazCMD.Contains("updateBETA")) {*/
-            panel1.Visible = true; /*}*/
-
-            var trenutniBMC = FileVersionInfo.GetVersionInfo((Path.Combine(potBMC, "BMC.exe")));
-            labelCurrentVerzija.Text +=  " " + trenutniBMC.FileVersion;
+            await HandleCommandLineArguments();
+            await LoadCurrentVersion();
         }
 
-        private void initPath()
+        private void InitializeForm()
+        {
+            panel1.Visible = true;
+        }
+
+        private async Task HandleCommandLineArguments()
+        {
+            var args = Environment.GetCommandLineArgs();
+
+            if (args.Contains("updateBMC"))
+            {
+                await HandleAutomaticUpdate(UpdateType.BMC);
+            }
+            else if (args.Contains("updateWebParam"))
+            {
+                await HandleAutomaticUpdate(UpdateType.WebParam);
+            }
+            else if (args.Contains("updateBETA"))
+            {
+                panel1.Visible = true;
+            }
+        }
+
+        private async Task HandleAutomaticUpdate(UpdateType updateType)
         {
             try
             {
-                XmlDataDocument xmldoc = new XmlDataDocument();
-                XmlNodeList xmlnode;
-                FileStream fs = new FileStream(@"BMC.ini", FileMode.Open, FileAccess.Read);
-                xmldoc.Load(fs);
-                fs.Close();
+                var logBuilder = new UpdateLogBuilder();
+                logBuilder.StartUpdate();
 
-                try
+                var progress = new Progress<UpdateProgress>(p => OnUpdateProgress(p, updateType));
+                UpdateResult result;
+
+                if (updateType == UpdateType.BMC)
                 {
-                    xmlnode = xmldoc.GetElementsByTagName("POT_BMC");
-                    potBMC = xmlnode[0].InnerText;
-                    if (potBMC.Length == 0) potBMC = "C:\\BMC\\";
+                    result = await _updateManager.UpdateBMCAsync(UpdateSource.FtpStable, progress, null);
                 }
-                catch { }
-                try
+                else
                 {
-                    xmlnode = xmldoc.GetElementsByTagName("POT_WEB_PARAM");
-                    potWebParam = xmlnode[0].InnerText;
-                    if (potWebParam.Length == 0) potWebParam = "C:\\inetpub\\WebParam\\";
+                    result = await _updateManager.UpdateWebParamAsync(progress);
                 }
-                catch { }
+
+                logBuilder.CompleteUpdate(result);
+                await _updateManager.WriteUpdateLogAsync(logBuilder.ToString(),
+                    updateType.ToString());
+
+                this.Close();
             }
-            catch { }
+            catch (Exception)
+            {
+                this.Close();
+            }
         }
 
-        //private void simpleButtonBeta_Click(object sender, EventArgs e)
-        //{
-        //    var warningText =
-        //        "To je BETA različica posodobitve. Nekatere funkcije morda ne bodo delovale pravilno.\n\n" +
-        //        "Želite vseeno nadaljevati?";
-        //    var warningResult = MessageBox.Show(
-        //        warningText,
-        //        "Opozorilo – BETA",
-        //        MessageBoxButtons.OKCancel,
-        //        MessageBoxIcon.Warning,
-        //        MessageBoxDefaultButton.Button2);
-        //    if (warningResult != DialogResult.OK) return;
-
-        //    if (Process.GetProcessesByName("BMC").Any())
-        //    {
-        //        MessageBox.Show("Zaprite vse odprte BMC programe!");
-        //        return;
-        //    }
-
-        //    downloadBetaBt.Enabled = false;
-        //    progressBarControlBeta.EditValue = 0;
-        //    backgroundWorker3.RunWorkerAsync();
-        //}
-
-        private void simpleButtonBeta_Click(object sender, EventArgs e)
+        private async Task LoadCurrentVersion()
         {
-            if (Process.GetProcessesByName("BMC").Any())
+            try
             {
-                MessageBox.Show("Zaprite vse odprte BMC programe!");
+                _currentVersion = await _updateManager.GetCurrentBMCVersionAsync();
+                labelCurrentVersion.Text = $"Current Version: {_currentVersion.DisplayVersion}";
+            }
+            catch
+            {
+                labelCurrentVersion.Text = "Current Version: (Unknown)";
+            }
+        }
+
+        // BMC Stable Update
+        private async void ButtonUpdateStable_Click(object sender, EventArgs e)
+        {
+            if (_updateManager.IsApplicationRunning("BMC"))
+            {
+                MessageBox.Show("Zapri vse BMC programe!");
                 return;
             }
 
-            string version = labelBeta.Text;
+            var downloadSource = _selectedStableRelease != null ? "iz internet" : "iz FTP";
+            var message = $"Preveri in prenesi posodobitve za BMC {downloadSource}?";
 
-            downloadBetaBt.Enabled = false;
-            progressBarControlBeta.EditValue = 0;
-            backgroundWorker3.RunWorkerAsync(version);
+            if (MessageBox.Show(message, "Potrdi", MessageBoxButtons.OKCancel) == DialogResult.OK)
+            {
+                await PerformUpdate(UpdateType.BMCStable);
+            }
         }
 
-        private void backgroundWorker3_DoWork(object sender, DoWorkEventArgs e)
+        // BMC Beta Update
+        private async void ButtonUpdateBeta_Click(object sender, EventArgs e)
         {
-            var backgroundWorker = sender as BackgroundWorker;
+            if (_updateManager.IsApplicationRunning("BMC"))
+            {
+                MessageBox.Show("Zapri vse BMC programe!");
+                return;
+            }
+
+            await PerformUpdate(UpdateType.BMCBeta);
+        }
+
+        // WebParam Update
+        private async void ButtonUpdateWebParam_Click(object sender, EventArgs e)
+        {
+            if (_updateManager.IsApplicationRunning("WebParam"))
+            {
+                MessageBox.Show("Zapri vse WebParam programe!");
+                return;
+            }
+
+            var message = "Preveri in prenesi posodobitve za WebParam?";
+            if (MessageBox.Show(message, "Potrdi", MessageBoxButtons.OKCancel) == DialogResult.OK)
+            {
+                await PerformUpdate(UpdateType.WebParam);
+            }
+        }
+
+        private async Task PerformUpdate(UpdateType updateType)
+        {
             try
             {
-                var version = e.Argument as string;
-                
+                DisableUpdateButton(updateType, true);
+                ResetProgress(updateType);
 
-                var progress = new Progress<int>(percent =>
+                var progress = new Progress<UpdateProgress>(p => OnUpdateProgress(p, updateType));
+                var source = DetermineUpdateSource(updateType);
+
+                UpdateResult result;
+                if (updateType == UpdateType.WebParam)
                 {
-                    backgroundWorker.ReportProgress(percent);
-                });
-
-            }
-            catch (Exception ex)
-            {
-                backgroundWorker.ReportProgress(-1, ex);
-            }
-        }
-
-
-        private void getFromFTP()
-        {
-            percent = 0;
-            lendth = 0;
-            i = 0;
-            simpleButton1.Enabled = false;
-            progressBarControl1.Properties.Step = 1;
-            progressBarControl1.Properties.PercentView = true;
-            progressBarControl1.Properties.Maximum = 100;
-            progressBarControl1.Properties.Minimum = 0;
-            progressBarControl1.EditValue = 0;
-            progressBarControl1.Properties.PercentView = true;
-            progressBarControl1.Properties.ShowTitle = true;
-
-            backgroundWorker1.RunWorkerAsync();
-        }
-        private void getFromFTPWebParam()
-        {
-            percent = 0;
-            lendth = 0;
-            i = 0;
-            simpleButton2.Enabled = false;
-            progressBarControl2.Properties.Step = 1;
-            progressBarControl2.Properties.PercentView = true;
-            progressBarControl2.Properties.Maximum = 100;
-            progressBarControl2.Properties.Minimum = 0;
-            progressBarControl2.EditValue = 0;
-            progressBarControl2.Properties.PercentView = true;
-            progressBarControl2.Properties.ShowTitle = true;
-
-            backgroundWorker2.RunWorkerAsync();
-        }
-
-        private void simpleButton1_Click(object sender, EventArgs e)
-        {
-            if (System.Diagnostics.Process.GetProcessesByName("BMC").Count() > 0) MessageBox.Show("Zaprite vse oprte BMC programe!");
-            else
-            {
-                string message = "Ali preverim in prenesem posodobitve za program BMC?";
-                string caption = "Potrdi";
-                MessageBoxButtons buttons = MessageBoxButtons.OKCancel;
-                DialogResult result;
-
-                result = MessageBox.Show(message, caption, buttons);
-
-                if (result == System.Windows.Forms.DialogResult.OK)
-                {
-                    getFromFTP();
-                }
-
-            }
-        }
-        private void simpleButton2_Click(object sender, EventArgs e)
-        {
-            if (System.Diagnostics.Process.GetProcessesByName("WebParam").Count() > 0) MessageBox.Show("Zaprite vse oprte Web Param programe!");
-            else
-            {
-                string message = "Ali preverim in prenesem posodobitve za program WebParam?";
-                string caption = "Potrdi";
-                MessageBoxButtons buttons = MessageBoxButtons.OKCancel;
-                DialogResult result;
-
-                result = MessageBox.Show(message, caption, buttons);
-
-                if (result == System.Windows.Forms.DialogResult.OK)
-                {
-                    getFromFTPWebParam();
-                }
-
-            }
-        }
-        private double lendth = 0, i = 1;
-        private void backgroundWorker1_DoWork(object sender, DoWorkEventArgs e)
-        {
-            var backgroundWorker = sender as BackgroundWorker;
-            try
-            {
-
-                string url = "bmc.si", username = "updater@bmc.si", password = "fcc1b727289ac03db7e76f6291039923";
-
-                SessionOptions sessionOptions = new SessionOptions
-                {
-                    Protocol = Protocol.Ftp,
-                    HostName = url,
-                    UserName = username,
-                    Password = password,
-                };
-
-                using (Session session = new Session())
-                {
-                    string localPath = potBMC;
-                    // Connect
-                    session.Open(sessionOptions);
-
-                    string remotePath = @"/1/";
-                    RemoteDirectoryInfo directoryInfo = session.ListDirectory(remotePath);
-                    lendth = directoryInfo.Files.Count;
-
-                    downloadFiles(directoryInfo, session, localPath, remotePath, backgroundWorker, true);
-                }
-            }
-            catch (Exception ex)
-            {
-                backgroundWorker.ReportProgress(-1, ex);
-            }
-        }
-
-        //private void backgroundWorker3_DoWork(object sender, DoWorkEventArgs e)
-        //{
-        //    var backgroundWorker = sender as BackgroundWorker;
-        //    try
-        //    {
-
-        //        string url = "bmc.si", username = "updater@bmc.si", password = "fcc1b727289ac03db7e76f6291039923";
-
-        //        SessionOptions sessionOptions = new SessionOptions
-        //        {
-        //            Protocol = Protocol.Ftp,
-        //            HostName = url,
-        //            UserName = username,
-        //            Password = password,
-        //        };
-
-        //        using (Session session = new Session())
-        //        {
-        //            string localPath = potBMC;
-        //            session.Open(sessionOptions);
-
-        //            string remotePath = @"/BETA/";
-        //            RemoteDirectoryInfo directoryInfo = session.ListDirectory(remotePath);
-        //            lendth = directoryInfo.Files.Count;
-
-        //            downloadFiles(directoryInfo, session, localPath, remotePath, backgroundWorker, true);
-        //        }
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        backgroundWorker.ReportProgress(-1, ex);
-        //    }
-        //}
-
-        private void backgroundWorker3_ProgressChanged(object sender, ProgressChangedEventArgs e)
-        {
-            if (e.ProgressPercentage < 0)
-            {
-                var ex = (Exception)e.UserState;
-                MessageBox.Show(ex.ToString());
-            }
-            else
-            {
-                progressBarControlBeta.EditValue = e.ProgressPercentage;
-                percent = e.ProgressPercentage;
-            }
-        }
-
-
-        private void backgroundWorker3_RunWorkerCompleted(object sender, RunWorkerCompletedEventArgs e)
-        {
-            downloadBetaBt.Enabled = true;
-
-            if (e.Error != null)
-            {
-                MessageBox.Show("Prišlo je do napake: " + e.Error.Message);
-            }
-            else if (e.Cancelled)
-            {
-                MessageBox.Show("Prenos je bil preklican.");
-            }
-            else
-            {
-                MessageBox.Show("Prenos BETA aplikacije končan!");
-            }
-        }
-
-
-        private void downloadFiles(RemoteDirectoryInfo directoryInfo, Session session, string localPath, string remotePath, BackgroundWorker backgroundWorker, bool rootLevel)
-        {
-
-            foreach (RemoteFileInfo rfi in directoryInfo.Files)
-            {
-                if (rfi.IsDirectory && rfi.Name.Replace(".", "").Length > 0)
-                {
-                    downloadFiles(session.ListDirectory(remotePath + rfi.Name + "/"), session, localPath + rfi.Name + "\\", remotePath + rfi.Name + "/", backgroundWorker, false);
+                    result = await _updateManager.UpdateWebParamAsync(progress);
                 }
                 else
-                {//MessageBox.Show(rfi.Name + " " + rfi.LastWriteTime + " Time local: " + System.IO.File.GetLastWriteTime(localPath + rfi.Name) + "     Type:" + rfi.FileType);
-                    if (rfi.LastWriteTime != System.IO.File.GetLastWriteTime(localPath + rfi.Name) && rfi.Name.Replace(".", "").Length > 0 && rfi.Name.Split('.').Last() != "fdb" && rfi.Name.Split('.').Last() != "FDB")
+                {
+                    GitHubRelease selectedRelease = null;
+                    if (source == UpdateSource.GitHub)
                     {
-                        string sourcePath = RemotePath.EscapeFileMask(remotePath + rfi.Name);
-                        TransferOperationResult transferResult = session.GetFiles(sourcePath, localPath);
-                        transferResult.Check();
-
-                        foreach (TransferEventArgs transfer in transferResult.Transfers)
-                        {
-                            autoUpdateLog += "Prenos datoteke " + transfer.FileName + " uspešen." + Environment.NewLine;
-                        }
+                        selectedRelease = (updateType == UpdateType.BMCBeta) ? _selectedBetaRelease : _selectedStableRelease;
                     }
+
+                    result = await _updateManager.UpdateBMCAsync(source, progress, selectedRelease);
                 }
 
-                if (rootLevel)
-                {
-                    i++;
-                    backgroundWorker.ReportProgress(Convert.ToInt32((i / lendth) * 100));
-                }
+                ShowUpdateResult(result, updateType);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Posodobitev ni uspela: {ex.Message}");
+            }
+            finally
+            {
+                DisableUpdateButton(updateType, false);
+                ResetProgressFormat(updateType);
             }
         }
 
-        private void backgroundWorker1_ProgressChanged(object sender, ProgressChangedEventArgs e)
+        private UpdateSource DetermineUpdateSource(UpdateType updateType)
         {
-
-            if (e.ProgressPercentage == -1)
+            if (updateType == UpdateType.BMCBeta && _selectedBetaRelease == null)
             {
-                Exception ex = (Exception)e.UserState;
-                MessageBox.Show(ex.Message + Environment.NewLine + Environment.NewLine + ex.InnerException + Environment.NewLine + Environment.NewLine + ex.Source + Environment.NewLine + Environment.NewLine + ex.StackTrace + Environment.NewLine + Environment.NewLine + ex.TargetSite);
+                return UpdateSource.FtpBeta;
+            }
+            else if (updateType == UpdateType.BMCStable && _selectedStableRelease == null)
+            {
+                return UpdateSource.FtpStable;
             }
             else
             {
-                progressBarControl1.EditValue = e.ProgressPercentage;
-                //progressBarControl1.PerformStep();
-                percent = e.ProgressPercentage;
-                progressBarControl1.Update();
+                return UpdateSource.GitHub;
             }
-
         }
 
-        private void backgroundWorker1_RunWorkerCompleted(object sender, RunWorkerCompletedEventArgs e)
+        private void OnUpdateProgress(UpdateProgress progress, UpdateType updateType = UpdateType.BMC)
         {
-            BackgroundWorker b1 = (BackgroundWorker)sender;
-            if (autoUpdate)
+            if (InvokeRequired)
             {
-                if (percent != 100) autoUpdateLog += "Med prenosom je prišlo do napake.";
-                else autoUpdateLog += "Posodobitve uspešno prenešene, konec prenosa podatkov ob: " + DateTime.Now.ToString("dd.MM.yyyy HH:mm:ss") + Environment.NewLine + Environment.NewLine;
+                Invoke(new Action<UpdateProgress, UpdateType>(OnUpdateProgress), progress, updateType);
+                return;
+            }
 
-                try
-                {
-                    if (!Directory.Exists(potBMC + @"Log\")) Directory.CreateDirectory(potBMC + @"Log\");
-                    System.IO.File.AppendAllText(potBMC + @"Log\AutoUpdate.txt", autoUpdateLog);
-                }
-                catch { }
-                this.Close();
+            if (progress.IsError)
+            {
+                MessageBox.Show(progress.Exception?.ToString() ?? "Neznana napaka");
+                return;
+            }
+
+            var progressBar = GetProgressBarForUpdateType(updateType);
+            progressBar.EditValue = progress.PercentComplete;
+
+            if (!string.IsNullOrEmpty(progress.StatusMessage))
+            {
+                progressBar.Properties.DisplayFormat.FormatString = progress.StatusMessage;
+            }
+        }
+
+        private DevExpress.XtraEditors.ProgressBarControl GetProgressBarForUpdateType(UpdateType updateType)
+        {
+            switch (updateType)
+            {
+                case UpdateType.BMCBeta:
+                    return progressBarControlBeta;
+                case UpdateType.WebParam:
+                    return progressBarControl2;
+                default:
+                    return progressBarControl1;
+            }
+        }
+
+        private void DisableUpdateButton(UpdateType updateType, bool disable)
+        {
+            SimpleButton button;
+            switch (updateType)
+            {
+                case UpdateType.BMCBeta:
+                    button = downloadBetaBt;
+                    break;
+                case UpdateType.WebParam:
+                    button = downloadWebparamBT;
+                    break;
+                default:
+                    button = downloadStableBt;
+                    break;
+            }
+            button.Enabled = !disable;
+        }
+
+        private void ResetProgress(UpdateType updateType)
+        {
+            var progressBar = GetProgressBarForUpdateType(updateType);
+            progressBar.EditValue = 0;
+        }
+
+        private void ResetProgressFormat(UpdateType updateType)
+        {
+            var progressBar = GetProgressBarForUpdateType(updateType);
+            progressBar.Properties.DisplayFormat.FormatString = "{0}%";
+        }
+
+        private void ShowUpdateResult(UpdateResult result, UpdateType updateType)
+        {
+            var downloadMethod = (updateType == UpdateType.BMCBeta && _selectedBetaRelease != null) ||
+                                (updateType == UpdateType.BMCStable && _selectedStableRelease != null)
+                                ? "iz interneta" : "iz FTP";
+
+            if (result.Success)
+            {
+                MessageBox.Show($"Prenos {downloadMethod} uspel!");
             }
             else
             {
-                if (percent != 100) MessageBox.Show("Med prenosom je prišlo do napake. Preverite internetno povezavo in preverite če je kje še kje odprt BMC program.");
-                else MessageBox.Show("Prenos končan!");
-                simpleButton1.Enabled = true;
+                MessageBox.Show($"Posodobitev ni uspela: {result.Message}");
             }
         }
 
-        private async void simpleButton3_Click(object sender, EventArgs e)
+        // Version Selection Methods
+        private async void ButtonSelectBetaVersion_Click(object sender, EventArgs e)
+        {
+            await SelectGitHubVersion(true);
+        }
+
+        private async void ButtonSelectStableVersion_Click(object sender, EventArgs e)
+        {
+            await SelectGitHubVersion(false);
+        }
+
+        private async Task SelectGitHubVersion(bool isBeta)
         {
             try
             {
                 var updater = new GitHubUpdater();
-                var versions = await updater.GetReleases();
+                var allReleases = await updater.GetReleases();
 
-                using (var versionForm = new VerzijeGrid(versions))
+                var filteredReleases = isBeta
+                    ? allReleases
+                    : allReleases.Where(r => r.Verzija.Contains("STABLE")).ToList();
+
+                using (var versionForm = new VerzijeGrid(filteredReleases, _currentVersion?.DisplayVersion))
                 {
                     if (versionForm.ShowDialog() == DialogResult.OK && versionForm.SelectedRelease != null)
                     {
-                        XtraMessageBox.Show($"Selected version: {versionForm.SelectedRelease.Verzija}",
-                            "Version Selected",
-                            MessageBoxButtons.OK,
-                            MessageBoxIcon.Information);
-                        var selected = versionForm.SelectedRelease.Verzija;
-                        this.labelBeta.Text = selected;
-                        var tab = downloadBetaBt.Text.Split(' ');
-                        downloadBetaBt.Text = $"{tab[0]} {selected}";
+                        HandleVersionSelection(versionForm.SelectedRelease, isBeta);
+                    }
+                    else
+                    {
+                        ClearVersionSelection(isBeta);
                     }
                 }
             }
             catch (Exception ex)
             {
-                XtraMessageBox.Show($"Error loading releases: {ex.Message}", "Error",
-                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+                XtraMessageBox.Show($"Error loading versions: {ex.Message}\n\nWill use FTP download.",
+                    "Version Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                ClearVersionSelection(isBeta);
             }
         }
 
-        private void backgroundWorker2_DoWork(object sender, DoWorkEventArgs e)
+        private void HandleVersionSelection(GitHubRelease selectedRelease, bool isBeta)
         {
-            var backgroundWorker = sender as BackgroundWorker;
-            try
+            if (isBeta)
             {
-                string url = "bmc.si", username = "updater@bmc.si", password = "fcc1b727289ac03db7e76f6291039923";
-
-                SessionOptions sessionOptions = new SessionOptions
-                {
-                    Protocol = Protocol.Ftp,
-                    HostName = url,
-                    UserName = username,
-                    Password = password,
-                };
-
-                using (Session session = new Session())
-                {
-                    string localPath = potWebParam;
-                    // Connect
-                    session.Open(sessionOptions);
-
-                    string remotePath = @"/6/";
-                    RemoteDirectoryInfo directoryInfo = session.ListDirectory(remotePath);
-
-                    lendth = directoryInfo.Files.Count;
-                    int i = 0;
-
-
-                    downloadFiles(directoryInfo, session, localPath, remotePath, backgroundWorker, true);
-                }
-            }
-            catch (Exception ex) { backgroundWorker.ReportProgress(-1, ex); }
-        }
-
-        private void backgroundWorker2_ProgressChanged(object sender, ProgressChangedEventArgs e)
-        {
-            if (e.ProgressPercentage == -1)
-            {
-                Exception ex = (Exception)e.UserState;
-                MessageBox.Show(ex.Message);
+                _selectedBetaRelease = selectedRelease;
+                labelBeta.Text = selectedRelease.Verzija;
+                downloadBetaBt.Text = $"Prenesi {selectedRelease.Verzija}";
             }
             else
             {
-                progressBarControl2.EditValue = e.ProgressPercentage;
-                //progressBarControl1.PerformStep();
-                percent = e.ProgressPercentage;
-                progressBarControl2.Update();
+                _selectedStableRelease = selectedRelease;
+                labelStable.Text = selectedRelease.Verzija;
+                downloadStableBt.Text = $"Prenesi {selectedRelease.Verzija}";
             }
+
+            var assetCount = selectedRelease.Assets?.Count ?? 0;
+            XtraMessageBox.Show($"Izbrana verzija: {selectedRelease.Verzija}\nDatoteke za prenos: {assetCount}",
+                isBeta ? "Beta verzije" : "Stabilne verzije",
+                MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
-        private void backgroundWorker2_RunWorkerCompleted(object sender, RunWorkerCompletedEventArgs e)
+        private void ClearVersionSelection(bool isBeta)
         {
-            if (autoUpdate)
+            if (isBeta)
             {
-                if (percent != 100) autoUpdateWebLog += "Med prenosom je prišlo do napake.";
-                else autoUpdateWebLog += "Posodobitve uspešno prenešene, konec prenosa podatkov ob: " + DateTime.Now.ToString("dd.MM.yyyy HH:mm:ss") + Environment.NewLine + Environment.NewLine;
-
-                try
-                {
-                    if (!Directory.Exists(potWebParam + @"Log\")) Directory.CreateDirectory(potWebParam + @"Log\");
-                    System.IO.File.AppendAllText(potWebParam + @"Log\AutoUpdate.txt", autoUpdateWebLog);
-                }
-                catch { }
-                this.Close();
+                _selectedBetaRelease = null;
+                labelBeta.Text = "BETA posodobitve";
+                downloadBetaBt.Text = "Prenesi najnovejše posodobitve";
             }
             else
             {
-                if (percent != 100) MessageBox.Show("Med prenosom je prišlo do napake. Preverite internetno povezavo in preverite če je kje še kje odprt BMC program.");
-                else MessageBox.Show("Prenos končan!");
-                simpleButton1.Enabled = true;
+                _selectedStableRelease = null;
+                labelStable.Text = "STABLE posodobitve";
+                downloadStableBt.Text = "Prenesi najnovejše posodobitve";
             }
+        }
+
+        private void ButtonClearBetaVersion_Click(object sender, EventArgs e)
+        {
+            ClearVersionSelection(true);
+        }
+
+        private void ButtonClearStableVersion_Click(object sender, EventArgs e)
+        {
+            ClearVersionSelection(false);
         }
     }
-}
 
+    public enum UpdateType
+    {
+        BMC,
+        BMCStable,
+        BMCBeta,
+        WebParam
+    }
+
+    public class CommandLineHandler
+    {
+        public bool ShouldUpdateBMC => Environment.GetCommandLineArgs().Contains("updateBMC");
+        public bool ShouldUpdateWebParam => Environment.GetCommandLineArgs().Contains("updateWebParam");
+        public bool ShouldShowBeta => Environment.GetCommandLineArgs().Contains("updateBETA");
+    }
+
+    public class UpdateLogBuilder
+    {
+        private string _log = "";
+
+        public void StartUpdate()
+        {
+            _log += $"Automatic update started at {DateTime.Now:dd.MM.yyyy HH:mm:ss}{Environment.NewLine}";
+        }
+
+        public void CompleteUpdate(UpdateResult result)
+        {
+            if (result.Success)
+            {
+                _log += $"Updates successfully downloaded, completed at: {DateTime.Now:dd.MM.yyyy HH:mm:ss}{Environment.NewLine}{Environment.NewLine}";
+            }
+            else
+            {
+                _log += $"Error occurred during download: {result.Message}{Environment.NewLine}";
+            }
+        }
+
+        public override string ToString() => _log;
+    }
+}

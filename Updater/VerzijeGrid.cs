@@ -11,10 +11,12 @@ namespace Updater
     public partial class VerzijeGrid : XtraForm
     {
         public GitHubRelease SelectedRelease { get; private set; }
+        private string currentVersion;
 
-        public VerzijeGrid(List<GitHubRelease> releases)
+        public VerzijeGrid(List<GitHubRelease> releases, string currentInstalledVersion = null)
         {
             InitializeComponent();
+            currentVersion = currentInstalledVersion;
             SetupFormAppearance();
             SetupGridControl();
             PassVersionsToGrid(releases);
@@ -22,7 +24,6 @@ namespace Updater
 
         private void SetupFormAppearance()
         {
-            // Form styling
             this.StartPosition = FormStartPosition.CenterParent;
             this.FormBorderStyle = FormBorderStyle.FixedDialog;
             this.MaximizeBox = false;
@@ -35,26 +36,108 @@ namespace Updater
         {
             gridControlReleases.Font = new Font("Segoe UI", 9.75f);
 
-            // GridView styling
             gridViewReleases.Appearance.Row.Font = new Font("Segoe UI", 9.75f);
             gridViewReleases.Appearance.HeaderPanel.Font = new Font("Segoe UI", 9.75f, FontStyle.Bold);
             gridViewReleases.Appearance.FooterPanel.Font = new Font("Segoe UI", 9.75f);
             gridViewReleases.Appearance.Row.Options.UseFont = true;
             gridViewReleases.Appearance.HeaderPanel.Options.UseFont = true;
 
-            // Enable alternating row colors
             gridViewReleases.OptionsView.EnableAppearanceEvenRow = true;
             gridViewReleases.OptionsView.EnableAppearanceOddRow = true;
             gridViewReleases.Appearance.OddRow.BackColor = Color.FromArgb(244, 244, 244);
             gridViewReleases.Appearance.EvenRow.BackColor = Color.White;
 
-            // Remove focus rectangle
             gridViewReleases.OptionsSelection.EnableAppearanceFocusedCell = false;
             gridViewReleases.FocusRectStyle = DrawFocusRectStyle.RowFocus;
+
+            gridViewReleases.RowCellStyle += GridViewReleases_RowCellStyle;
+            gridViewReleases.SelectionChanged += GridViewReleases_SelectionChanged;
+            gridViewReleases.FocusedRowChanged += GridViewReleases_FocusedRowChanged;
+        }
+
+        private void GridViewReleases_RowCellStyle(object sender, RowCellStyleEventArgs e)
+        {
+            var gridView = sender as GridView;
+            var release = gridView.GetRow(e.RowHandle) as GitHubRelease;
+
+            if (release != null && IsCurrentVersion(release.Verzija))
+            {
+                e.Appearance.BackColor = Color.FromArgb(220, 220, 220);
+                e.Appearance.ForeColor = Color.Gray;
+                e.Appearance.Font = new Font(e.Appearance.Font, FontStyle.Italic);
+            }
+        }
+
+        private void GridViewReleases_SelectionChanged(object sender, DevExpress.Data.SelectionChangedEventArgs e)
+        {
+            var gridView = sender as GridView;
+
+            var release = gridView.GetRow(e.ControllerRow) as GitHubRelease;
+            if (release != null && IsCurrentVersion(release.Verzija))
+            {
+                gridView.UnselectRow(e.ControllerRow);
+            }
+
+        }
+
+        private void GridViewReleases_FocusedRowChanged(object sender, DevExpress.XtraGrid.Views.Base.FocusedRowChangedEventArgs e)
+        {
+            var gridView = sender as GridView;
+            if (e.FocusedRowHandle >= 0)
+            {
+                var release = gridView.GetRow(e.FocusedRowHandle) as GitHubRelease;
+                if (release != null && IsCurrentVersion(release.Verzija))
+                {
+                    int nextRow = FindNextSelectableRow(gridView, e.FocusedRowHandle);
+                    if (nextRow >= 0)
+                    {
+                        gridView.FocusedRowHandle = nextRow;
+                    }
+                }
+            }
+        }
+
+        private int FindNextSelectableRow(GridView gridView, int currentRow)
+        {
+            for (int i = currentRow + 1; i < gridView.RowCount; i++)
+            {
+                var release = gridView.GetRow(i) as GitHubRelease;
+                if (release != null && !IsCurrentVersion(release.Verzija))
+                {
+                    return i;
+                }
+            }
+
+            for (int i = currentRow - 1; i >= 0; i--)
+            {
+                var release = gridView.GetRow(i) as GitHubRelease;
+                if (release != null && !IsCurrentVersion(release.Verzija))
+                {
+                    return i;
+                }
+            }
+
+            return -1;
+        }
+
+        private bool IsCurrentVersion(string releaseVersion)
+        {
+            if (string.IsNullOrEmpty(currentVersion) || string.IsNullOrEmpty(releaseVersion))
+                return false;
+
+            return string.Equals(currentVersion, releaseVersion, StringComparison.OrdinalIgnoreCase);
         }
 
         public void PassVersionsToGrid(List<GitHubRelease> releases)
         {
+            foreach (var release in releases)
+            {
+                if (IsCurrentVersion(release.Verzija))
+                {
+                    release.Opomba = "Trenutna verzija";
+                }
+            }
+
             gridControlReleases.DataSource = releases;
             ConfigureGridColumns();
         }
@@ -63,23 +146,15 @@ namespace Updater
         {
             gridViewReleases.Columns.Clear();
 
-            // Version column
             var versionCol = gridViewReleases.Columns.AddVisible("Verzija", "Verzija");
             versionCol.OptionsColumn.AllowEdit = false;
             versionCol.Width = 120;
 
-            // Date column
             var dateCol = gridViewReleases.Columns.AddVisible("Objavljeno", "Objavljeno");
             dateCol.DisplayFormat.FormatString = "yyyy-MM-dd";
             dateCol.OptionsColumn.AllowEdit = false;
             dateCol.Width = 120;
 
-            // Pre-release column
-            var prereleaseCol = gridViewReleases.Columns.AddVisible("Alpha", "Alpha");
-            prereleaseCol.OptionsColumn.AllowEdit = false;
-            prereleaseCol.Width = 80;
-
-            // Notes column
             var notesCol = gridViewReleases.Columns.AddVisible("Opomba", "Opomba");
             notesCol.OptionsColumn.AllowEdit = false;
             notesCol.OptionsColumn.AllowEdit = false;
@@ -88,7 +163,6 @@ namespace Updater
             notesCol.OptionsColumn.AllowSize = true;
             notesCol.OptionsColumn.AllowMove = false;
 
-            // Grid behavior options
             gridViewReleases.OptionsView.ShowGroupPanel = false;
             gridViewReleases.OptionsView.ShowAutoFilterRow = true;
             gridViewReleases.OptionsView.ShowIndicator = false;
@@ -97,11 +171,9 @@ namespace Updater
             gridViewReleases.OptionsSelection.EnableAppearanceFocusedRow = true;
             gridViewReleases.OptionsDetail.EnableMasterViewMode = false;
 
-            // Enable row auto-height for notes
             gridViewReleases.OptionsView.RowAutoHeight = true;
             gridViewReleases.OptionsView.ColumnAutoWidth = false;
 
-            // Best fit columns after all settings
             gridViewReleases.BestFitColumns();
         }
 
@@ -119,13 +191,24 @@ namespace Updater
         {
             if (gridViewReleases.FocusedRowHandle >= 0)
             {
-                SelectedRelease = gridViewReleases.GetFocusedRow() as GitHubRelease;
-                this.DialogResult = DialogResult.OK;
-                this.Close();
+                var release = gridViewReleases.GetFocusedRow() as GitHubRelease;
+                if (release != null)
+                {
+                    if (IsCurrentVersion(release.Verzija))
+                    {
+                        XtraMessageBox.Show("Ta verzija je že nameščena.", "Verzije",
+                            MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        return;
+                    }
+
+                    SelectedRelease = release;
+                    this.DialogResult = DialogResult.OK;
+                    this.Close();
+                }
             }
             else
             {
-                XtraMessageBox.Show("Please select a release first.", "No Selection",
+                XtraMessageBox.Show("Prosim izberite verzijo.", "Ni izbire",
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
         }
