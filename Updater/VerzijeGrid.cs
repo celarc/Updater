@@ -75,9 +75,8 @@ namespace Updater
             var release = gridView.GetRow(e.ControllerRow) as GitHubRelease;
             if (release != null && IsCurrentVersion(release.Verzija))
             {
-                gridView.UnselectRow(e.ControllerRow);
+                //gridView.UnselectRow(e.ControllerRow);
             }
-
         }
 
         private void GridViewReleases_FocusedRowChanged(object sender, DevExpress.XtraGrid.Views.Base.FocusedRowChangedEventArgs e)
@@ -88,12 +87,14 @@ namespace Updater
                 var release = gridView.GetRow(e.FocusedRowHandle) as GitHubRelease;
                 if (release != null && IsCurrentVersion(release.Verzija))
                 {
-                    int nextRow = FindNextSelectableRow(gridView, e.FocusedRowHandle);
-                    if (nextRow >= 0)
-                    {
-                        gridView.FocusedRowHandle = nextRow;
-                    }
+                    simpleButtonSelect.Enabled = false;
+                    //int nextRow = FindNextSelectableRow(gridView, e.FocusedRowHandle);
+                    //if (nextRow >= 0)
+                    //{
+                    //    gridView.FocusedRowHandle = nextRow;
+                    //}
                 }
+                else simpleButtonSelect.Enabled = true;
             }
         }
 
@@ -162,6 +163,12 @@ namespace Updater
             notesCol.OptionsColumn.AllowMerge = DevExpress.Utils.DefaultBoolean.False;
             notesCol.OptionsColumn.AllowSize = true;
             notesCol.OptionsColumn.AllowMove = false;
+
+            var detailsCol = gridViewReleases.Columns.AddVisible("Opis", "Opis");
+            detailsCol.OptionsColumn.AllowEdit = false;
+            detailsCol.OptionsColumn.AllowMerge = DevExpress.Utils.DefaultBoolean.False;
+            detailsCol.OptionsColumn.AllowSize = true;
+            detailsCol.OptionsColumn.AllowMove = false;
 
             gridViewReleases.OptionsView.ShowGroupPanel = false;
             gridViewReleases.OptionsView.ShowAutoFilterRow = true;

@@ -6,6 +6,9 @@ using System.Threading.Tasks;
 using WinSCP;
 using Updater.Configuration;
 using Updater.Models;
+using static System.Collections.Specialized.BitVector32;
+using System.Diagnostics;
+using System.Diagnostics.Eventing.Reader;
 
 namespace Updater.Services
 {
@@ -68,7 +71,7 @@ namespace Updater.Services
                     session.Open(sessionOptions);
 
                     var directoryInfo = session.ListDirectory(remotePath);
-                    var totalFiles = CountFiles(directoryInfo);
+                    var totalFiles = CountFiles(directoryInfo,session);
                     var filesProcessed = 0;
 
                     var result = ProcessDirectory(directoryInfo, session, localPath, remotePath,
@@ -106,17 +109,25 @@ namespace Updater.Services
                 else if (ShouldUpdateFile(fileInfo, localPath))
                 {
                     updatedFiles += DownloadFile(session, fileInfo, remotePath, localPath);
-
                     filesProcessed++;
                     var progressPercent = (int)((double)filesProcessed / totalFiles * 100);
-                    progress?.Report(UpdateProgress.Create(progressPercent,
-                        $"Downloaded: {fileInfo.Name}", fileInfo.Name));
+                    progress?.Report(UpdateProgress.Create(progressPercent, $"Datoteka prenesena: {fileInfo.Name}", fileInfo.Name));
                 }
+                else if(!fileInfo.IsDirectory)
+                {
+                    filesProcessed++;
+                    var progressPercent = (int)((double)filesProcessed / totalFiles * 100);
+                    progress?.Report(UpdateProgress.Create(progressPercent, "", fileInfo.Name));
+                }
+                
             }
 
             return updatedFiles;
         }
-
+        private void ReportProgress()
+        {
+            
+        }
         private bool ShouldUpdateFile(RemoteFileInfo fileInfo, string localPath)
         {
             if (string.IsNullOrEmpty(fileInfo.Name.Replace(".", "")))
@@ -127,6 +138,8 @@ namespace Updater.Services
                 return false;
 
             var localFilePath = Path.Combine(localPath, fileInfo.Name);
+            DateTime local = File.GetLastWriteTime(localFilePath);
+            DateTime remote = fileInfo.LastWriteTime;
             return !File.Exists(localFilePath) ||
                    File.GetLastWriteTime(localFilePath) != fileInfo.LastWriteTime;
         }
@@ -136,31 +149,40 @@ namespace Updater.Services
         {
             try
             {
-                var sourceFile = RemotePath.EscapeFileMask(remotePath + fileInfo.Name);
-                var transferResult = session.GetFiles(sourceFile, localPath);
+                string remoteFilePath = RemotePath.Combine(remotePath, fileInfo.Name);
+                string localFilePath = Path.Combine(localPath, fileInfo.Name); // <- to je E:\bmc\.playwright\node\win32_x64\node.exe
+
+                var transferResult = session.GetFiles(remoteFilePath, localFilePath, false);
                 transferResult.Check();
                 return transferResult.Transfers.Count;
             }
-            catch
+            catch(Exception e)
             {
                 return 0;
             }
         }
 
-        private int CountFiles(RemoteDirectoryInfo directoryInfo)
+        private int CountFiles(RemoteDirectoryInfo directoryInfo, Session session)
         {
             int count = 0;
+
             foreach (RemoteFileInfo fileInfo in directoryInfo.Files)
             {
-                if (fileInfo.IsDirectory && !string.IsNullOrEmpty(fileInfo.Name.Replace(".", "")))
+                // Preskoči "." in ".." mape (če so prisotne)
+                if (string.IsNullOrEmpty(fileInfo.Name.Replace(".", "")))
+                    continue;
+
+                if (fileInfo.IsDirectory)
                 {
-                    count += 1;
+                    // Pridobi RemoteDirectoryInfo za podmapo
+                    count += CountFiles(session.ListDirectory(fileInfo.FullName),session);
                 }
-                else if (!string.IsNullOrEmpty(fileInfo.Name.Replace(".", "")))
+                else
                 {
                     count++;
                 }
             }
+
             return count;
         }
 

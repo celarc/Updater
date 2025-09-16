@@ -39,10 +39,13 @@
             // 
             // gridControlReleases
             // 
+            this.gridControlReleases.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
+            | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
             this.gridControlReleases.Location = new System.Drawing.Point(-1, 12);
             this.gridControlReleases.MainView = this.gridViewReleases;
             this.gridControlReleases.Name = "gridControlReleases";
-            this.gridControlReleases.Size = new System.Drawing.Size(449, 230);
+            this.gridControlReleases.Size = new System.Drawing.Size(788, 387);
             this.gridControlReleases.TabIndex = 0;
             this.gridControlReleases.ViewCollection.AddRange(new DevExpress.XtraGrid.Views.Base.BaseView[] {
             this.gridViewReleases});
@@ -55,7 +58,7 @@
             // simpleButtonSelect
             // 
             this.simpleButtonSelect.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
-            this.simpleButtonSelect.Location = new System.Drawing.Point(280, 283);
+            this.simpleButtonSelect.Location = new System.Drawing.Point(619, 440);
             this.simpleButtonSelect.Name = "simpleButtonSelect";
             this.simpleButtonSelect.Size = new System.Drawing.Size(75, 23);
             this.simpleButtonSelect.TabIndex = 1;
@@ -65,7 +68,7 @@
             // simpleButtonCancel
             // 
             this.simpleButtonCancel.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
-            this.simpleButtonCancel.Location = new System.Drawing.Point(361, 283);
+            this.simpleButtonCancel.Location = new System.Drawing.Point(700, 440);
             this.simpleButtonCancel.Name = "simpleButtonCancel";
             this.simpleButtonCancel.Size = new System.Drawing.Size(75, 23);
             this.simpleButtonCancel.TabIndex = 2;
@@ -76,12 +79,13 @@
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(448, 318);
+            this.ClientSize = new System.Drawing.Size(787, 475);
             this.Controls.Add(this.simpleButtonCancel);
             this.Controls.Add(this.simpleButtonSelect);
             this.Controls.Add(this.gridControlReleases);
             this.IconOptions.Icon = ((System.Drawing.Icon)(resources.GetObject("VerzijeGrid.IconOptions.Icon")));
             this.Name = "VerzijeGrid";
+            this.ShowInTaskbar = false;
             this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
             this.Text = "Verzije";
             this.Load += new System.EventHandler(this.VerzijeGrid_Load);

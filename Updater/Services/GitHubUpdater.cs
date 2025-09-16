@@ -16,7 +16,7 @@ namespace Updater
     public class GitHubUpdater
     {
         private const string GitHubApiUrl = "https://api.github.com/repos/celarc/BMC/releases";
-        private readonly string PersonalAccessToken = ""; // Kopiraj PAT za delovanje  C:\Users\BMC008\Desktop\githubPAT.txt
+        private readonly string PersonalAccessToken = "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"; // Kopiraj PAT za delovanje  C:\Users\BMC008\Desktop\githubPAT.txt
 
         public async Task<UpdateResult> UpdateFromGitHubAsync(GitHubRelease release, string targetPath,
             IProgress<UpdateProgress> progress = null)
@@ -104,6 +104,7 @@ namespace Updater
                 using (var httpClient = new HttpClient())
                 {
                     httpClient.DefaultRequestHeaders.Add("User-Agent", "Updater");
+
                     httpClient.DefaultRequestHeaders.Add("Accept", "application/vnd.github.v3+json");
 
                     if (!string.IsNullOrEmpty(PersonalAccessToken))
@@ -157,8 +158,10 @@ namespace Updater
         [JsonProperty("published_at")]
         public DateTime Objavljeno { get; set; }
 
-        [JsonProperty("body")]
+        [JsonProperty("Current")]
         public string Opomba { get; set; }
+        [JsonProperty("body")]
+        public string Opis { get; set; }
 
         [JsonProperty("assets")]
         public List<GitHubAsset> Assets { get; set; } = new List<GitHubAsset>();

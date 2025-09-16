@@ -6,6 +6,7 @@ using System.Windows.Forms;
 using DevExpress.XtraEditors;
 using Updater.Services;
 using Updater.Models;
+using System.Diagnostics.Eventing.Reader;
 
 namespace Updater
 {
@@ -29,11 +30,13 @@ namespace Updater
         {
             await HandleCommandLineArguments();
             await LoadCurrentVersion();
+            await GetLatestGitHubVersion(false);
+            if(panel1.Visible)await GetLatestGitHubVersion(true);
         }
 
         private void InitializeForm()
         {
-            panel1.Visible = true;
+            //panel1.Visible = true;
         }
 
         private async Task HandleCommandLineArguments()
@@ -90,11 +93,11 @@ namespace Updater
             try
             {
                 _currentVersion = await _updateManager.GetCurrentBMCVersionAsync();
-                labelCurrentVersion.Text = $"Current Version: {_currentVersion.DisplayVersion}";
+                lCurrentVersion.Text = _currentVersion.DisplayVersion;
             }
             catch
             {
-                labelCurrentVersion.Text = "Current Version: (Unknown)";
+                lCurrentVersion.Text = "Neznana";
             }
         }
 
@@ -215,11 +218,20 @@ namespace Updater
 
             var progressBar = GetProgressBarForUpdateType(updateType);
             progressBar.EditValue = progress.PercentComplete;
-
-            if (!string.IsNullOrEmpty(progress.StatusMessage))
+            progressBar.Properties.ShowTitle = true;
+            progressBar.Properties.DisplayFormat.FormatType = DevExpress.Utils.FormatType.Numeric;
+            progressBar.Properties.DisplayFormat.FormatString = "{0}%";
+            if (progress.StatusMessage.Length > 0)
             {
-                progressBar.Properties.DisplayFormat.FormatString = progress.StatusMessage;
+                richTextBox1.AppendText(progress.StatusMessage + Environment.NewLine);
+                richTextBox1.SelectionStart = richTextBox1.Text.Length;
+                richTextBox1.ScrollToCaret();
             }
+
+            //if (!string.IsNullOrEmpty(progress.StatusMessage))
+            //{
+            //    progressBar.Properties.DisplayFormat.FormatString = progress.StatusMessage;
+            //}
         }
 
         private DevExpress.XtraEditors.ProgressBarControl GetProgressBarForUpdateType(UpdateType updateType)
@@ -257,6 +269,7 @@ namespace Updater
         {
             var progressBar = GetProgressBarForUpdateType(updateType);
             progressBar.EditValue = 0;
+            richTextBox1.Text = "";
         }
 
         private void ResetProgressFormat(UpdateType updateType)
@@ -265,7 +278,7 @@ namespace Updater
             progressBar.Properties.DisplayFormat.FormatString = "{0}%";
         }
 
-        private void ShowUpdateResult(UpdateResult result, UpdateType updateType)
+        private async void ShowUpdateResult(UpdateResult result, UpdateType updateType)
         {
             var downloadMethod = (updateType == UpdateType.BMCBeta && _selectedBetaRelease != null) ||
                                 (updateType == UpdateType.BMCStable && _selectedStableRelease != null)
@@ -273,6 +286,7 @@ namespace Updater
 
             if (result.Success)
             {
+                await LoadCurrentVersion();
                 MessageBox.Show($"Prenos {downloadMethod} uspel!");
             }
             else
@@ -291,7 +305,26 @@ namespace Updater
         {
             await SelectGitHubVersion(false);
         }
+        private async Task GetLatestGitHubVersion(bool isBeta)
+        {
+            try
+            {
+                var updater = new GitHubUpdater();
+                var allReleases = await updater.GetReleases();
 
+                var filteredReleases = isBeta
+                    ? allReleases.Where(r => r.Verzija.Contains("BETA")).ToList()
+                    : allReleases.Where(r => r.Verzija.Contains("STABLE")).ToList();
+
+                if(isBeta) lLatestBeta.Text = filteredReleases[0].Ime;
+                else lLastVersion.Text = filteredReleases[0].Ime;
+            }
+            catch (Exception ex)
+            {
+                XtraMessageBox.Show($"Error loading versions: {ex.Message}\n\nWill use FTP download.",
+                    "Version Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+        }
         private async Task SelectGitHubVersion(bool isBeta)
         {
             try
@@ -300,7 +333,7 @@ namespace Updater
                 var allReleases = await updater.GetReleases();
 
                 var filteredReleases = isBeta
-                    ? allReleases
+                    ? allReleases.Where(r => r.Verzija.Contains("BETA")).ToList()
                     : allReleases.Where(r => r.Verzija.Contains("STABLE")).ToList();
 
                 using (var versionForm = new VerzijeGrid(filteredReleases, _currentVersion?.DisplayVersion))
