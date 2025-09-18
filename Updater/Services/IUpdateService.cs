@@ -18,6 +18,7 @@ namespace Updater.Services
         FtpStable,
         FtpBeta,
         FtpWebParam,
-        GitHub
+        GitHub,
+        Unknown
     }
 }

@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Windows.Forms;
+using Updater.Utils;
 using static DevExpress.Utils.Svg.CommonSvgImages;
 
 namespace Updater
@@ -203,8 +204,9 @@ namespace Updater
                 {
                     if (IsCurrentVersion(release.Verzija))
                     {
-                        XtraMessageBox.Show("Ta verzija je že nameščena.", "Verzije",
+                        XtraMessageBox.Show(SlovenianMessages.VersionAlreadyInstalled, SlovenianMessages.Versions,
                             MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        UpdaterLogger.LogInfo($"Version {release.Verzija} already installed");
                         return;
                     }
 
@@ -215,8 +217,9 @@ namespace Updater
             }
             else
             {
-                XtraMessageBox.Show("Prosim izberite verzijo.", "Ni izbire",
+                XtraMessageBox.Show(SlovenianMessages.PleaseSelectVersion, SlovenianMessages.NoSelection,
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
+                UpdaterLogger.LogWarning("No version selected for download");
             }
         }
 

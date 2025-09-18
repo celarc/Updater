@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dir:*)",
+      "Bash(cmd /c:*)",
+      "Bash(msbuild:*)",
+      "Bash(\"C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Professional\\MSBuild\\Current\\Bin\\MSBuild.exe\" Updater.sln /p:Configuration=Debug)",
+      "WebFetch(domain:api.github.com)",
+      "WebSearch",
+      "WebFetch(domain:docs.github.com)",
+      "Bash(ls:*)",
+      "Bash(unzip:*)",
+      "Read(//c/BMC/**)",
+      "Bash(cat:*)",
+      "Bash(tasklist)",
+      "Bash(findstr:*)"
+    ],
+    "deny": [],
+    "ask": [],
+    "additionalDirectories": [
+      "C:\\Users\\BMC008\\source\\repos\\celarc\\BMC",
+    ]
+  }
+}
