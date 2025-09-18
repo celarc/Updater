@@ -24,7 +24,7 @@ namespace Updater.Services
 
         public async Task<VersionInfo> GetCurrentVersionAsync(string applicationPath)
         {
-            // Delegate to FTP service for version detection
+            // Use the same improved version detection as FTP service
             var ftpService = new FtpUpdateService();
             return await ftpService.GetCurrentVersionAsync(applicationPath);
         }

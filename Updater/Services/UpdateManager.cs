@@ -6,6 +6,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Updater.Models;
 using Updater.Configuration;
+using Updater.Utils;
 
 namespace Updater.Services
 {
@@ -30,12 +31,28 @@ namespace Updater.Services
                 if (_ftpUpdateService.IsApplicationRunning("BMC"))
                 {
                     _ftpUpdateService.StopRunningApplications("BMC");
+
+                    // Verify that BMC process actually stopped
+                    if (_ftpUpdateService.IsApplicationRunning("BMC"))
+                    {
+                        UpdaterLogger.LogError("BMC application could not be stopped for update");
+                        return UpdateResult.CreateFailure(SlovenianMessages.BMCStillRunning);
+                    }
                 }
 
                 if (source == UpdateSource.GitHub && gitHubRelease != null)
                 {
                     var updater = new GitHubUpdater(); //Legacy method for downloading github releases
-                    return await updater.UpdateFromGitHubAsync(gitHubRelease, _config.BMCPath, progress);
+                    var result = await updater.UpdateFromGitHubAsync(gitHubRelease, _config.BMCPath, progress);
+
+                    // Additional delay after GitHub updates to ensure files are fully accessible
+                    if (result.Success)
+                    {
+                        UpdaterLogger.LogInfo("GitHub update completed, allowing additional time for file system stabilization");
+                        await Task.Delay(2000); // Additional 2-second delay for GitHub updates
+                    }
+
+                    return result;
                 }
                 else
                 {
@@ -44,7 +61,9 @@ namespace Updater.Services
             }
             catch (Exception ex)
             {
-                return UpdateResult.CreateFailure($"BMC update failed: {ex.Message}", ex);
+                var errorMsg = string.Format(SlovenianMessages.BMCUpdateFailed, ex.Message);
+                UpdaterLogger.LogError(errorMsg, ex);
+                return UpdateResult.CreateFailure(errorMsg, ex);
             }
         }
 
@@ -62,7 +81,9 @@ namespace Updater.Services
             }
             catch (Exception ex)
             {
-                return UpdateResult.CreateFailure($"WebParam update failed: {ex.Message}", ex);
+                var errorMsg = string.Format(SlovenianMessages.WebParamUpdateFailed, ex.Message);
+                UpdaterLogger.LogError(errorMsg, ex);
+                return UpdateResult.CreateFailure(errorMsg, ex);
             }
         }
 
@@ -83,26 +104,8 @@ namespace Updater.Services
 
         public async Task WriteUpdateLogAsync(string logContent, string logType = "BMC")
         {
-            await Task.Run(() =>
-            {
-                try
-                {
-                    var logPath = logType == "BMC" ? _config.BMCPath : _config.WebParamPath;
-                    var logDir = Path.Combine(logPath, "Log");
-
-                    if (!Directory.Exists(logDir))
-                    {
-                        Directory.CreateDirectory(logDir);
-                    }
-
-                    var logFile = Path.Combine(logDir, "AutoUpdate.txt");
-                    File.AppendAllText(logFile, logContent);
-                }
-                catch
-                {
-                    // Ignore logging errors
-                }
-            });
+            var targetPath = logType == "BMC" ? _config.BMCPath : _config.WebParamPath;
+            await UpdaterLogger.WriteUpdateLogAsync(logContent, targetPath);
         }
     }
 }

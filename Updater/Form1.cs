@@ -6,6 +6,7 @@ using System.Windows.Forms;
 using DevExpress.XtraEditors;
 using Updater.Services;
 using Updater.Models;
+using Updater.Utils;
 using System.Diagnostics.Eventing.Reader;
 
 namespace Updater
@@ -63,6 +64,7 @@ namespace Updater
             {
                 var logBuilder = new UpdateLogBuilder();
                 logBuilder.StartUpdate();
+                UpdaterLogger.LogInfo($"Starting automatic update for {updateType}");
 
                 var progress = new Progress<UpdateProgress>(p => OnUpdateProgress(p, updateType));
                 UpdateResult result;
@@ -80,24 +82,58 @@ namespace Updater
                 await _updateManager.WriteUpdateLogAsync(logBuilder.ToString(),
                     updateType.ToString());
 
+                UpdaterLogger.LogInfo($"Automatic update for {updateType} completed. Success: {result.Success}");
                 this.Close();
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                UpdaterLogger.LogError($"Automatic update for {updateType} failed", ex);
                 this.Close();
             }
         }
 
-        private async Task LoadCurrentVersion()
+        private async Task LoadCurrentVersion(bool isAfterGitHubUpdate = false)
         {
-            try
+            const int maxRetries = 3;
+            int baseDelay = isAfterGitHubUpdate ? 4000 : 2000; // Longer delay for GitHub updates
+
+            for (int attempt = 1; attempt <= maxRetries; attempt++)
             {
-                _currentVersion = await _updateManager.GetCurrentBMCVersionAsync();
-                lCurrentVersion.Text = _currentVersion.DisplayVersion;
-            }
-            catch
-            {
-                lCurrentVersion.Text = "Neznana";
+                try
+                {
+                    // Increase delay to ensure file operations are complete
+                    // Use longer delays for GitHub updates as they may need more time
+                    await Task.Delay(baseDelay * attempt);
+
+                    UpdaterLogger.LogInfo($"Attempting to load current version (attempt {attempt}/{maxRetries}){(isAfterGitHubUpdate ? " after GitHub update" : "")}");
+                    _currentVersion = await _updateManager.GetCurrentBMCVersionAsync();
+
+                    if (_currentVersion != null && !string.IsNullOrEmpty(_currentVersion.Version) && _currentVersion.Version != "Unknown")
+                    {
+                        lCurrentVersion.Text = _currentVersion.DisplayVersion;
+                        UpdaterLogger.LogInfo($"Current version loaded successfully: {_currentVersion.DisplayVersion}");
+                        return; // Success, exit retry loop
+                    }
+                    else
+                    {
+                        UpdaterLogger.LogWarning($"Version load attempt {attempt} returned unknown/empty version");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    UpdaterLogger.LogWarning($"Version load attempt {attempt} failed: {ex.Message}");
+
+                    if (attempt == maxRetries)
+                    {
+                        // Final attempt failed
+                        UpdaterLogger.LogError($"Could not load current version after {maxRetries} attempts", ex);
+                        lCurrentVersion.Text = "Neznana";
+                        return;
+                    }
+
+                    // Wait before retrying - longer waits for GitHub updates
+                    await Task.Delay(isAfterGitHubUpdate ? 2000 : 1000);
+                }
             }
         }
 
@@ -106,14 +142,15 @@ namespace Updater
         {
             if (_updateManager.IsApplicationRunning("BMC"))
             {
-                MessageBox.Show("Zapri vse BMC programe!");
+                MessageBox.Show(SlovenianMessages.CloseBMCPrograms);
+                UpdaterLogger.LogWarning("BMC process running, stable update cancelled by user");
                 return;
             }
 
             var downloadSource = _selectedStableRelease != null ? "iz internet" : "iz FTP";
             var message = $"Preveri in prenesi posodobitve za BMC {downloadSource}?";
 
-            if (MessageBox.Show(message, "Potrdi", MessageBoxButtons.OKCancel) == DialogResult.OK)
+            if (MessageBox.Show(message, SlovenianMessages.Confirm, MessageBoxButtons.OKCancel) == DialogResult.OK)
             {
                 await PerformUpdate(UpdateType.BMCStable);
             }
@@ -124,7 +161,8 @@ namespace Updater
         {
             if (_updateManager.IsApplicationRunning("BMC"))
             {
-                MessageBox.Show("Zapri vse BMC programe!");
+                MessageBox.Show(SlovenianMessages.CloseBMCPrograms);
+                UpdaterLogger.LogWarning("BMC process running, beta update cancelled by user");
                 return;
             }
 
@@ -136,12 +174,13 @@ namespace Updater
         {
             if (_updateManager.IsApplicationRunning("WebParam"))
             {
-                MessageBox.Show("Zapri vse WebParam programe!");
+                MessageBox.Show(SlovenianMessages.CloseWebParamPrograms);
+                UpdaterLogger.LogWarning("WebParam process running, update cancelled by user");
                 return;
             }
 
             var message = "Preveri in prenesi posodobitve za WebParam?";
-            if (MessageBox.Show(message, "Potrdi", MessageBoxButtons.OKCancel) == DialogResult.OK)
+            if (MessageBox.Show(message, SlovenianMessages.Confirm, MessageBoxButtons.OKCancel) == DialogResult.OK)
             {
                 await PerformUpdate(UpdateType.WebParam);
             }
@@ -173,11 +212,12 @@ namespace Updater
                     result = await _updateManager.UpdateBMCAsync(source, progress, selectedRelease);
                 }
 
-                ShowUpdateResult(result, updateType);
+                await ShowUpdateResult(result, updateType);
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Posodobitev ni uspela: {ex.Message}");
+                MessageBox.Show($"{SlovenianMessages.UpdateFailed}: {ex.Message}");
+                UpdaterLogger.LogError("Update failed in PerformUpdate", ex);
             }
             finally
             {
@@ -212,7 +252,8 @@ namespace Updater
 
             if (progress.IsError)
             {
-                MessageBox.Show(progress.Exception?.ToString() ?? "Neznana napaka");
+                MessageBox.Show(progress.Exception?.ToString() ?? SlovenianMessages.UnknownError);
+                UpdaterLogger.LogError("Update progress error", progress.Exception);
                 return;
             }
 
@@ -278,20 +319,29 @@ namespace Updater
             progressBar.Properties.DisplayFormat.FormatString = "{0}%";
         }
 
-        private async void ShowUpdateResult(UpdateResult result, UpdateType updateType)
+        private async Task ShowUpdateResult(UpdateResult result, UpdateType updateType)
         {
-            var downloadMethod = (updateType == UpdateType.BMCBeta && _selectedBetaRelease != null) ||
-                                (updateType == UpdateType.BMCStable && _selectedStableRelease != null)
-                                ? "iz interneta" : "iz FTP";
+            var isGitHubUpdate = (updateType == UpdateType.BMCBeta && _selectedBetaRelease != null) ||
+                                (updateType == UpdateType.BMCStable && _selectedStableRelease != null);
+            var downloadMethod = isGitHubUpdate ? "iz interneta" : "iz FTP";
 
             if (result.Success)
             {
-                await LoadCurrentVersion();
-                MessageBox.Show($"Prenos {downloadMethod} uspel!");
+                // Refresh the current version display immediately after successful update
+                // Pass flag to indicate if this was a GitHub update for better timing
+                await LoadCurrentVersion(isGitHubUpdate);
+
+                // Force UI refresh
+                lCurrentVersion.Refresh();
+                Application.DoEvents();
+
+                MessageBox.Show(string.Format(SlovenianMessages.DownloadSuccessful, downloadMethod));
+                UpdaterLogger.LogInfo($"Download completed successfully using {downloadMethod}. New version: {lCurrentVersion.Text}");
             }
             else
             {
-                MessageBox.Show($"Posodobitev ni uspela: {result.Message}");
+                MessageBox.Show($"{SlovenianMessages.UpdateFailed}: {result.Message}");
+                UpdaterLogger.LogError($"Update failed: {result.Message}");
             }
         }
 
@@ -321,8 +371,9 @@ namespace Updater
             }
             catch (Exception ex)
             {
-                XtraMessageBox.Show($"Error loading versions: {ex.Message}\n\nWill use FTP download.",
-                    "Version Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                XtraMessageBox.Show($"{SlovenianMessages.VersionError}: {ex.Message}\n\n{SlovenianMessages.WillUseFtpDownload}",
+                    SlovenianMessages.VersionError, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                UpdaterLogger.LogError("Error loading GitHub versions for stable", ex);
             }
         }
         private async Task SelectGitHubVersion(bool isBeta)
@@ -350,8 +401,9 @@ namespace Updater
             }
             catch (Exception ex)
             {
-                XtraMessageBox.Show($"Error loading versions: {ex.Message}\n\nWill use FTP download.",
-                    "Version Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                XtraMessageBox.Show($"{SlovenianMessages.VersionError}: {ex.Message}\n\n{SlovenianMessages.WillUseFtpDownload}",
+                    SlovenianMessages.VersionError, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                UpdaterLogger.LogError("Error loading GitHub versions for beta", ex);
                 ClearVersionSelection(isBeta);
             }
         }
@@ -372,7 +424,7 @@ namespace Updater
             }
 
             var assetCount = selectedRelease.Assets?.Count ?? 0;
-            XtraMessageBox.Show($"Izbrana verzija: {selectedRelease.Verzija}\nDatoteke za prenos: {assetCount}",
+            XtraMessageBox.Show(string.Format(SlovenianMessages.SelectedVersion, selectedRelease.Verzija, assetCount),
                 isBeta ? "Beta verzije" : "Stabilne verzije",
                 MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
@@ -425,18 +477,18 @@ namespace Updater
 
         public void StartUpdate()
         {
-            _log += $"Automatic update started at {DateTime.Now:dd.MM.yyyy HH:mm:ss}{Environment.NewLine}";
+            _log += $"Samodejna posodobitev začeta ob {DateTime.Now:dd.MM.yyyy HH:mm:ss}{Environment.NewLine}";
         }
 
         public void CompleteUpdate(UpdateResult result)
         {
             if (result.Success)
             {
-                _log += $"Updates successfully downloaded, completed at: {DateTime.Now:dd.MM.yyyy HH:mm:ss}{Environment.NewLine}{Environment.NewLine}";
+                _log += $"Posodobitve uspešno prenesene, končano ob: {DateTime.Now:dd.MM.yyyy HH:mm:ss}{Environment.NewLine}{Environment.NewLine}";
             }
             else
             {
-                _log += $"Error occurred during download: {result.Message}{Environment.NewLine}";
+                _log += $"Napaka med prenosom: {result.Message}{Environment.NewLine}";
             }
         }
 
