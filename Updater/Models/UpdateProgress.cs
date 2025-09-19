@@ -8,11 +8,10 @@
         public bool IsError { get; set; }
         public System.Exception Exception { get; set; }
 
-        // Enhanced progress properties
         public long BytesTransferred { get; set; }
         public long TotalBytes { get; set; }
-        public double TransferSpeed { get; set; } // Bytes per second
-        public string OperationType { get; set; } // "Prenašam", "Izvlačim", etc.
+        public double TransferSpeed { get; set; }
+        public string OperationType { get; set; }
 
         public static UpdateProgress Create(int percent, string status = null, string currentFile = null)
         {
@@ -51,7 +50,6 @@
             };
         }
 
-        // Helper property to get formatted transfer speed
         public string FormattedSpeed
         {
             get
@@ -65,7 +63,6 @@
             }
         }
 
-        // Helper property to get formatted bytes
         public string FormattedBytes
         {
             get

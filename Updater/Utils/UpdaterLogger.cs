@@ -32,7 +32,6 @@ namespace Updater.Utils
             {
                 lock (_lock)
                 {
-                    // Write to BMC log directory
                     var logPath = GetLogPath();
                     var timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
                     var logEntry = $"{timestamp} [{level}] {message}{Environment.NewLine}";
@@ -40,9 +39,9 @@ namespace Updater.Utils
                     File.AppendAllText(logPath, logEntry);
                 }
             }
-            catch
+            catch (Exception ex)
             {
-                // Silently fail if logging doesn't work
+                System.Diagnostics.Debug.WriteLine($"Failed to write log: {ex.Message}");
             }
         }
 
@@ -50,7 +49,6 @@ namespace Updater.Utils
         {
             try
             {
-                // Use BMC installation path from config
                 var config = UpdaterConfig.Instance;
                 var bmcPath = config.BMCPath;
 
@@ -64,9 +62,9 @@ namespace Updater.Utils
                     return Path.Combine(logDir, "updaterLogs.txt");
                 }
             }
-            catch
+            catch (Exception ex)
             {
-                // Fall back to debug log if config fails
+                System.Diagnostics.Debug.WriteLine($"Failed to get log path: {ex.Message}");
             }
 
             return GetDebugLogPath();
@@ -103,9 +101,9 @@ namespace Updater.Utils
 
                     File.AppendAllText(logFile, logEntry);
                 }
-                catch
+                catch (Exception ex)
                 {
-                    // Silently fail if logging doesn't work
+                    System.Diagnostics.Debug.WriteLine($"Failed to write update log: {ex.Message}");
                 }
             });
         }
@@ -133,7 +131,6 @@ namespace Updater.Utils
                 if (backupFiles.Count == 0)
                     return;
 
-                // Delete all existing backup files since we're about to create a new one
                 var filesToDelete = backupFiles.ToList();
 
                 foreach (var fileToDelete in filesToDelete)
@@ -142,15 +139,15 @@ namespace Updater.Utils
                     {
                         File.Delete(fileToDelete.FullName);
                     }
-                    catch
+                    catch (Exception ex)
                     {
-                        // Silently continue if deletion fails
+                        System.Diagnostics.Debug.WriteLine($"Failed to delete backup file {fileToDelete.FullName}: {ex.Message}");
                     }
                 }
             }
-            catch
+            catch (Exception ex)
             {
-                // Silently fail if cleanup doesn't work
+                System.Diagnostics.Debug.WriteLine($"Failed to cleanup backup files: {ex.Message}");
             }
         }
     }

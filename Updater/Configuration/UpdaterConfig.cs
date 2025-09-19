@@ -16,6 +16,11 @@ namespace Updater.Configuration
         public string FtpPassword { get; private set; } = "fcc1b727289ac03db7e76f6291039923";
         public string GitHubPersonalAccessToken { get; private set; } = "";
 
+        public int NetworkFileRetryAttempts { get; private set; } = 10;
+        public int NetworkFileRetryDelayMs { get; private set; } = 1000;
+        public int NetworkFileSignalWaitAttempts { get; private set; } = 5;
+        public int NetworkFileSignalWaitDelayMs { get; private set; } = 2000;
+
         public static UpdaterConfig Instance
         {
             get
@@ -39,7 +44,6 @@ namespace Updater.Configuration
 
         private void LoadConfiguration()
         {
-            // Load GitHub PAT from github.config
             try
             {
                 var appDirectory = Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
@@ -56,7 +60,6 @@ namespace Updater.Configuration
             }
             catch (Exception ex)
             {
-                // GitHub config loading failed, PAT remains empty
             }
 
             try
@@ -80,10 +83,33 @@ namespace Updater.Configuration
                 {
                     WebParamPath = webParamPathNode[0].InnerText;
                 }
+
+                var networkRetryAttemptsNode = xmlDoc.GetElementsByTagName("NETWORK_RETRY_ATTEMPTS");
+                if (networkRetryAttemptsNode.Count > 0 && int.TryParse(networkRetryAttemptsNode[0].InnerText, out var retryAttempts))
+                {
+                    NetworkFileRetryAttempts = retryAttempts;
+                }
+
+                var networkRetryDelayNode = xmlDoc.GetElementsByTagName("NETWORK_RETRY_DELAY_MS");
+                if (networkRetryDelayNode.Count > 0 && int.TryParse(networkRetryDelayNode[0].InnerText, out var retryDelay))
+                {
+                    NetworkFileRetryDelayMs = retryDelay;
+                }
+
+                var networkSignalAttemptsNode = xmlDoc.GetElementsByTagName("NETWORK_SIGNAL_WAIT_ATTEMPTS");
+                if (networkSignalAttemptsNode.Count > 0 && int.TryParse(networkSignalAttemptsNode[0].InnerText, out var signalAttempts))
+                {
+                    NetworkFileSignalWaitAttempts = signalAttempts;
+                }
+
+                var networkSignalDelayNode = xmlDoc.GetElementsByTagName("NETWORK_SIGNAL_WAIT_DELAY_MS");
+                if (networkSignalDelayNode.Count > 0 && int.TryParse(networkSignalDelayNode[0].InnerText, out var signalDelay))
+                {
+                    NetworkFileSignalWaitDelayMs = signalDelay;
+                }
             }
             catch (Exception ex)
             {
-                // Configuration loading failed, using defaults
             }
         }
     }

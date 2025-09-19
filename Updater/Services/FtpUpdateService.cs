@@ -1,5 +1,4 @@
-﻿using System;
-using System.ComponentModel;
+using System;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -70,7 +69,6 @@ namespace Updater.Services
                 {
                     session.Open(sessionOptions);
 
-                    // First, get accurate total file count recursively
                     progress?.Report(UpdateProgress.Create(0, SlovenianMessages.CountingFiles));
                     var totalFiles = CountFilesRecursively(session, remotePath, localPath);
                     var filesProcessed = 0;
@@ -82,16 +80,13 @@ namespace Updater.Services
                     var result = ProcessDirectory(directoryInfo, session, localPath, remotePath,
                         progress, ref filesProcessed, totalFiles);
 
-                    // Force file system sync to ensure all files are fully written
                     progress?.Report(UpdateProgress.Create(100, SlovenianMessages.FinalizingTransfer));
                     UpdaterLogger.LogInfo("Forcing file system sync to ensure all files are written");
 
-                    // Force garbage collection to release any file handles
                     GC.Collect();
                     GC.WaitForPendingFinalizers();
                     GC.Collect();
 
-                    // Small additional delay to ensure file system operations are complete
                     System.Threading.Thread.Sleep(1000);
 
                     var successMsg = string.Format(SlovenianMessages.DownloadedFilesCount, result);
@@ -116,14 +111,12 @@ namespace Updater.Services
 
             foreach (RemoteFileInfo fileInfo in directoryInfo.Files)
             {
-                // Skip "." and ".." directories
                 if (fileInfo.Name == "." || fileInfo.Name == "..")
                     continue;
 
                 if (fileInfo.IsDirectory && !string.IsNullOrEmpty(fileInfo.Name.Replace(".", "")))
                 {
                     var dirName = fileInfo.Name.ToLowerInvariant();
-                    // Skip build artifacts and temporary directories
                     if (dirName.StartsWith(".") || dirName == "app.publish" ||
                         dirName == "node_modules" || dirName == "obj" || dirName == "bin")
                     {
@@ -142,18 +135,14 @@ namespace Updater.Services
                 }
                 else if (ShouldUpdateFile(fileInfo, localPath))
                 {
-                    // Report starting download with current progress
                     var startPercent = totalFiles > 0 ? (int)((double)filesProcessed / totalFiles * 100) : 0;
                     progress?.Report(UpdateProgress.Create(startPercent,
                         string.Format(SlovenianMessages.Downloading, fileInfo.Name), fileInfo.Name));
 
-                    // Download with detailed progress (filesProcessed is the current index)
                     updatedFiles += DownloadFile(session, fileInfo, remotePath, localPath, progress, filesProcessed, totalFiles);
 
-                    // Increment after successful download
                     filesProcessed++;
 
-                    // Report completion with updated progress
                     var endPercent = totalFiles > 0 ? (int)((double)filesProcessed / totalFiles * 100) : 100;
                     progress?.Report(UpdateProgress.Create(endPercent,
                         string.Format(SlovenianMessages.Downloaded, fileInfo.Name), fileInfo.Name));
@@ -186,36 +175,25 @@ namespace Updater.Services
                 var sourceFile = RemotePath.EscapeFileMask(remotePath + fileInfo.Name);
                 var targetFile = Path.Combine(localPath, fileInfo.Name);
 
-                // Check if file is in use and handle it
                 if (File.Exists(targetFile) && IsFileInUse(targetFile))
                 {
-                    // Try to rename the locked file as backup
                     try
                     {
-                        // Clean up old backup files before creating a new one
-                        UpdaterLogger.CleanupOldBackupFiles(targetFile);
-
-                        var backupFile = targetFile + ".backup." + DateTime.Now.Ticks;
-                        File.Move(targetFile, backupFile);
-                        UpdaterLogger.LogInfo($"Renamed locked file: {fileInfo.Name} to backup");
+                        FileOperations.CreateBackupFile(targetFile);
                     }
                     catch (Exception)
                     {
-                        // If renaming fails, skip this file
                         UpdaterLogger.LogWarning($"Could not rename locked file: {fileInfo.Name}");
                         return 0;
                     }
                 }
 
-                // Set up transfer options
                 var transferOptions = new TransferOptions
                 {
                     TransferMode = TransferMode.Binary,
                     OverwriteMode = OverwriteMode.Overwrite
                 };
 
-                // For now, let's simplify and not use the FileTransferProgress event
-                // as it's causing session conflicts. Report progress before and after.
                 if (progress != null && totalFiles > 0)
                 {
                     var startProgress = (currentFileIndex * 100) / totalFiles;
@@ -238,59 +216,7 @@ namespace Updater.Services
 
         private bool IsFileInUse(string filePath)
         {
-            if (!File.Exists(filePath))
-                return false;
-
-            // First check if any BMC-related processes are running
-            var fileName = Path.GetFileNameWithoutExtension(filePath);
-            var processes = System.Diagnostics.Process.GetProcessesByName(fileName);
-            if (processes.Length == 0)
-            {
-                processes = System.Diagnostics.Process.GetProcessesByName("BMC");
-            }
-
-            // If BMC processes are running, file is definitely in use
-            if (processes.Length > 0)
-            {
-                foreach (var process in processes)
-                {
-                    try
-                    {
-                        process.Dispose();
-                    }
-                    catch { }
-                }
-                return true;
-            }
-
-            // Try multiple approaches to check if file can be written to
-            for (int i = 0; i < 3; i++)
-            {
-                try
-                {
-                    // Try to open with exclusive access (no sharing)
-                    using (var stream = File.Open(filePath, FileMode.Open, FileAccess.Write, FileShare.None))
-                    {
-                        return false; // File is available
-                    }
-                }
-                catch (IOException)
-                {
-                    // File is locked, wait a bit and retry
-                    if (i < 2)
-                    {
-                        System.Threading.Thread.Sleep(500);
-                        continue;
-                    }
-                    return true;
-                }
-                catch (UnauthorizedAccessException)
-                {
-                    return true;
-                }
-            }
-
-            return true; // Assume in use if we get here
+            return FileOperations.IsFileInUse(filePath);
         }
 
         private int CountFiles(RemoteDirectoryInfo directoryInfo)
@@ -300,14 +226,10 @@ namespace Updater.Services
             {
                 if (fileInfo.IsDirectory && !string.IsNullOrEmpty(fileInfo.Name.Replace(".", "")))
                 {
-                    // For directories, we need to recursively count files, but we can't do that here
-                    // without another session call. We'll count directories as 1 for now
-                    // and improve this in the ProcessDirectory method
                     count += 1;
                 }
                 else if (!string.IsNullOrEmpty(fileInfo.Name.Replace(".", "")))
                 {
-                    // Only count files that would actually be downloaded
                     var extension = Path.GetExtension(fileInfo.Name).ToLowerInvariant();
                     if (extension != ".fdb")
                     {
@@ -327,15 +249,12 @@ namespace Updater.Services
 
                 foreach (RemoteFileInfo fileInfo in directoryInfo.Files)
                 {
-                    // Skip "." and ".." directories
                     if (fileInfo.Name == "." || fileInfo.Name == "..")
                         continue;
 
-                    // Skip directories we don't want to download
                     if (fileInfo.IsDirectory)
                     {
                         var dirName = fileInfo.Name.ToLowerInvariant();
-                        // Skip build artifacts and temporary directories
                         if (dirName.StartsWith(".") || dirName == "app.publish" ||
                             dirName == "node_modules" || dirName == "obj" || dirName == "bin")
                         {
@@ -359,10 +278,8 @@ namespace Updater.Services
                     else if (!string.IsNullOrEmpty(fileInfo.Name.Replace(".", "")))
                     {
                         var extension = Path.GetExtension(fileInfo.Name).ToLowerInvariant();
-                        // Only count files that would actually be downloaded (matching ShouldUpdateFile logic)
                         if (extension != ".fdb")
                         {
-                            // If localPath is provided, check if file needs updating
                             if (localPath != null)
                             {
                                 var localFilePath = Path.Combine(localPath, fileInfo.Name);
@@ -374,7 +291,6 @@ namespace Updater.Services
                             }
                             else
                             {
-                                // If no localPath, count all non-.fdb files
                                 count++;
                             }
                         }
@@ -397,252 +313,19 @@ namespace Updater.Services
 
         public async Task<VersionInfo> GetCurrentVersionAsync(string applicationPath)
         {
-            return await Task.Run(() =>
-            {
-                try
-                {
-                    var exePath = Path.Combine(applicationPath, "BMC.exe");
-
-                    // Check if file exists and is accessible
-                    if (!File.Exists(exePath))
-                    {
-                        UpdaterLogger.LogWarning($"BMC.exe not found at: {exePath}");
-                        return new VersionInfo { Version = "Unknown", Channel = "Unknown" };
-                    }
-
-                    // Force file system flush to ensure latest file content
-                    ForceFileSystemFlush(exePath);
-
-                    // Verify file is not locked and can be accessed
-                    if (!IsFileAccessible(exePath))
-                    {
-                        UpdaterLogger.LogWarning($"BMC.exe is locked or not accessible: {exePath}");
-                        return new VersionInfo { Version = "Unknown", Channel = "Unknown" };
-                    }
-
-                    // Get basic file version info first (this is most reliable)
-                    System.Diagnostics.FileVersionInfo versionInfo;
-                    try
-                    {
-                        versionInfo = System.Diagnostics.FileVersionInfo.GetVersionInfo(exePath);
-                        UpdaterLogger.LogInfo($"File version info obtained for: {exePath}");
-                    }
-                    catch (Exception ex)
-                    {
-                        UpdaterLogger.LogError($"Failed to get FileVersionInfo for {exePath}", ex);
-                        return new VersionInfo { Version = "Unknown", Channel = "Unknown" };
-                    }
-
-                    var productVersion = versionInfo.ProductVersion ?? "";
-                    var fileVersion = versionInfo.FileVersion ?? "";
-                    var comments = versionInfo.Comments ?? "";
-
-                    // Try assembly loading with retries for informational version
-                    var assemblyResult = TryGetAssemblyVersionInfo(exePath, fileVersion);
-                    if (assemblyResult != null && assemblyResult.Channel != "Unknown")
-                    {
-                        UpdaterLogger.LogInfo($"Version extracted from assembly: {assemblyResult.DisplayVersion}");
-                        return assemblyResult;
-                    }
-
-                    // Check product version (fallback)
-                    if (!string.IsNullOrEmpty(productVersion))
-                    {
-                        var parsed = VersionInfo.ParseFromExecutable(productVersion);
-                        if (parsed.Channel != "Unknown")
-                        {
-                            UpdaterLogger.LogInfo($"Version extracted from ProductVersion: {parsed.DisplayVersion}");
-                            return parsed;
-                        }
-                    }
-
-                    // Check comments field for channel info
-                    if (!string.IsNullOrEmpty(comments))
-                    {
-                        var parsed = VersionInfo.ParseFromExecutable(comments);
-                        if (parsed.Channel != "Unknown")
-                        {
-                            UpdaterLogger.LogInfo($"Version extracted from Comments: {parsed.DisplayVersion}");
-                            return parsed;
-                        }
-                    }
-
-                    // Fallback to file version
-                    if (!string.IsNullOrEmpty(fileVersion))
-                    {
-                        var parsed = VersionInfo.ParseFromExecutable(fileVersion);
-                        if (parsed.Channel != "Unknown")
-                        {
-                            UpdaterLogger.LogInfo($"Version extracted from FileVersion: {parsed.DisplayVersion}");
-                            return parsed;
-                        }
-                    }
-
-                    // Last resort: use file version with unknown channel
-                    var fallbackResult = new VersionInfo
-                    {
-                        Version = fileVersion ?? "Unknown",
-                        Channel = "Unknown"
-                    };
-                    UpdaterLogger.LogInfo($"Using fallback version: {fallbackResult.DisplayVersion}");
-                    return fallbackResult;
-                }
-                catch (Exception ex)
-                {
-                    UpdaterLogger.LogError("Failed to get current version", ex);
-                    return new VersionInfo { Version = "Unknown", Channel = "Unknown" };
-                }
-            });
+            return await VersionDetector.GetCurrentVersionAsync(applicationPath);
         }
 
-        private bool IsFileAccessible(string filePath)
-        {
-            try
-            {
-                using (var stream = File.Open(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
-                {
-                    return stream.Length > 0;
-                }
-            }
-            catch
-            {
-                return false;
-            }
-        }
 
-        private void ForceFileSystemFlush(string filePath)
-        {
-            try
-            {
-                // Force flush by opening and closing the file
-                using (var stream = File.Open(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
-                {
-                    stream.Flush();
-                }
-
-                // Additional small delay to ensure file system sync
-                System.Threading.Thread.Sleep(100);
-            }
-            catch
-            {
-                // Ignore flush errors - file might be locked temporarily
-            }
-        }
-
-        private VersionInfo TryGetAssemblyVersionInfo(string exePath, string fallbackVersion)
-        {
-            const int maxRetries = 3;
-
-            for (int attempt = 1; attempt <= maxRetries; attempt++)
-            {
-                try
-                {
-                    UpdaterLogger.LogInfo($"Attempting to load assembly (attempt {attempt}/{maxRetries}): {exePath}");
-
-                    // Force file system sync and add a small delay
-                    if (attempt > 1)
-                    {
-                        System.Threading.Thread.Sleep(1000 * attempt);
-                    }
-
-                    // Use a unique temporary copy to avoid caching issues
-                    var tempPath = Path.Combine(Path.GetTempPath(), $"BMC_temp_{Guid.NewGuid()}.exe");
-                    File.Copy(exePath, tempPath, true);
-
-                    try
-                    {
-                        var assembly = System.Reflection.Assembly.LoadFile(tempPath);
-
-                        // Check InformationalVersion attribute
-                        var informationalVersionAttr = assembly.GetCustomAttributes(typeof(System.Reflection.AssemblyInformationalVersionAttribute), false)
-                            .Cast<System.Reflection.AssemblyInformationalVersionAttribute>()
-                            .FirstOrDefault();
-
-                        if (informationalVersionAttr != null)
-                        {
-                            var informationalVersion = informationalVersionAttr.InformationalVersion ?? "";
-                            if (!string.IsNullOrEmpty(informationalVersion))
-                            {
-                                var parsed = VersionInfo.ParseFromExecutable(informationalVersion);
-                                if (parsed.Channel != "Unknown")
-                                {
-                                    UpdaterLogger.LogInfo($"Found version in InformationalVersion: {parsed.DisplayVersion}");
-                                    return parsed;
-                                }
-                            }
-                        }
-
-                        // Check AssemblyConfiguration attribute
-                        var configurationAttr = assembly.GetCustomAttributes(typeof(System.Reflection.AssemblyConfigurationAttribute), false)
-                            .Cast<System.Reflection.AssemblyConfigurationAttribute>()
-                            .FirstOrDefault();
-
-                        if (configurationAttr != null)
-                        {
-                            var configuration = configurationAttr.Configuration ?? "";
-                            if (configuration == "BETA" || configuration == "STABLE")
-                            {
-                                var result = new VersionInfo
-                                {
-                                    Channel = configuration,
-                                    Version = fallbackVersion ?? "Unknown"
-                                };
-                                UpdaterLogger.LogInfo($"Found version in AssemblyConfiguration: {result.DisplayVersion}");
-                                return result;
-                            }
-                        }
-
-                        // Assembly loaded successfully but no version info found
-                        UpdaterLogger.LogInfo("Assembly loaded but no version information found in attributes");
-                        return null;
-                    }
-                    finally
-                    {
-                        // Clean up temp file
-                        try
-                        {
-                            if (File.Exists(tempPath))
-                                File.Delete(tempPath);
-                        }
-                        catch { }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    UpdaterLogger.LogWarning($"Assembly load attempt {attempt} failed: {ex.Message}");
-
-                    if (attempt < maxRetries)
-                    {
-                        // Wait before retry
-                        System.Threading.Thread.Sleep(1000);
-                    }
-                }
-            }
-
-            UpdaterLogger.LogWarning($"Failed to load assembly after {maxRetries} attempts");
-            return null;
-        }
 
         public bool IsApplicationRunning(string processName)
         {
-            return System.Diagnostics.Process.GetProcessesByName(processName).Any();
+            return ProcessManager.IsApplicationRunning(processName);
         }
 
         public void StopRunningApplications(string processName)
         {
-            var processes = System.Diagnostics.Process.GetProcessesByName(processName);
-            foreach (var process in processes)
-            {
-                try
-                {
-                    process.Kill();
-                    process.WaitForExit(5000); // Wait up to 5 seconds for process to exit
-                }
-                catch
-                {
-                    // Ignore errors when killing processes
-                }
-            }
+            ProcessManager.StopRunningApplications(processName);
         }
     }
 }

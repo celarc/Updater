@@ -61,6 +61,7 @@
     <Reference Include="System.Buffers, Version=4.0.3.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
       <HintPath>..\packages\System.Buffers.4.5.1\lib\net461\System.Buffers.dll</HintPath>
     </Reference>
+    <Reference Include="System.Management" />
     <Reference Include="System.ComponentModel.DataAnnotations" />
     <Reference Include="System.Core" />
     <Reference Include="System.Data.Linq" />
@@ -116,6 +117,7 @@
     <Compile Include="Services\FtpUpdateService.cs" />
     <Compile Include="Services\UpdateManager.cs" />
     <Compile Include="Services\IUpdateService.cs" />
+    <Compile Include="Services\UpdateUIService.cs" />
     <Compile Include="VerzijeGrid.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -125,6 +127,12 @@
     <Compile Include="Services\GitHubUpdater.cs" />
     <Compile Include="Utils\UpdaterLogger.cs" />
     <Compile Include="Utils\SlovenianMessages.cs" />
+    <Compile Include="Utils\BMCLockFileManager.cs" />
+    <Compile Include="Utils\ProcessManager.cs" />
+    <Compile Include="Utils\FileOperations.cs" />
+    <Compile Include="Utils\VersionDetector.cs" />
+    <Compile Include="Utils\NetworkFileHandler.cs" />
+    <Compile Include="Utils\Constants.cs" />
     <Compile Include="Form1.cs">
       <SubType>Form</SubType>
     </Compile>

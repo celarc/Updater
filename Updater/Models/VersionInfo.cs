@@ -3,7 +3,7 @@
     public class VersionInfo
     {
         public string Version { get; set; }
-        public string Channel { get; set; } // BETA, STABLE
+        public string Channel { get; set; }
         public bool IsInstalled { get; set; }
         public System.DateTime? ReleaseDate { get; set; }
 
@@ -34,10 +34,8 @@
 
             var upperVersion = versionString.ToUpperInvariant();
 
-            // Check for BETA pattern: contains BETA
             if (upperVersion.Contains("BETA"))
             {
-                // Try to extract version after BETA- or just use the whole string
                 var betaIndex = upperVersion.IndexOf("BETA");
                 if (betaIndex >= 0)
                 {
@@ -45,7 +43,6 @@
                     if (afterBeta.StartsWith("-"))
                         afterBeta = afterBeta.Substring(1);
 
-                    // Clean up version string to get just the version part
                     var cleanVersion = ExtractVersionNumber(afterBeta.Length > 0 ? afterBeta : versionString);
 
                     return new VersionInfo
@@ -56,7 +53,6 @@
                 }
             }
 
-            // Check for STABLE pattern: contains STABLE
             if (upperVersion.Contains("STABLE"))
             {
                 var stableIndex = upperVersion.IndexOf("STABLE");
@@ -76,7 +72,6 @@
                 }
             }
 
-            // Check for dash pattern: CHANNEL-VERSION
             var dashIndex = versionString.IndexOf('-');
             if (dashIndex > 0)
             {
@@ -93,7 +88,6 @@
                 }
             }
 
-            // Fallback: just extract version number, channel unknown
             return new VersionInfo
             {
                 Version = ExtractVersionNumber(versionString),
@@ -106,14 +100,12 @@
             if (string.IsNullOrEmpty(input))
                 return "Unknown";
 
-            // Use regex to extract version pattern like 1.2.3.4 or 1.2.3
             var versionRegex = new System.Text.RegularExpressions.Regex(@"\d+(\.\d+)*");
             var match = versionRegex.Match(input);
 
             if (match.Success)
                 return match.Value;
 
-            // If no version pattern found, return the cleaned input
             return input.Trim();
         }
     }

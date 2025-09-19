@@ -1,6 +1,4 @@
-﻿// Update the UpdateManager to handle GitHub downloads
-// Services/UpdateManager.cs - Updated
-using System;
+﻿using System;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -28,12 +26,12 @@ namespace Updater.Services
         {
             try
             {
-                if (_ftpUpdateService.IsApplicationRunning("BMC"))
+                if (ProcessManager.IsApplicationRunningFromPath("BMC", _config.BMCPath))
                 {
-                    _ftpUpdateService.StopRunningApplications("BMC");
+                    ProcessManager.StopApplicationsFromPath("BMC", _config.BMCPath);
 
-                    // Verify that BMC process actually stopped
-                    if (_ftpUpdateService.IsApplicationRunning("BMC"))
+                    // Verify that BMC process actually stopped from target path
+                    if (ProcessManager.IsApplicationRunningFromPath("BMC", _config.BMCPath))
                     {
                         UpdaterLogger.LogError("BMC application could not be stopped for update");
                         return UpdateResult.CreateFailure(SlovenianMessages.BMCStillRunning);
@@ -42,14 +40,13 @@ namespace Updater.Services
 
                 if (source == UpdateSource.GitHub && gitHubRelease != null)
                 {
-                    var updater = new GitHubUpdater(); //Legacy method for downloading github releases
+                    var updater = new GitHubUpdater();
                     var result = await updater.UpdateFromGitHubAsync(gitHubRelease, _config.BMCPath, progress);
 
-                    // Additional delay after GitHub updates to ensure files are fully accessible
                     if (result.Success)
                     {
                         UpdaterLogger.LogInfo("GitHub update completed, allowing additional time for file system stabilization");
-                        await Task.Delay(2000); // Additional 2-second delay for GitHub updates
+                        await Task.Delay(2000);
                     }
 
                     return result;
@@ -89,17 +86,17 @@ namespace Updater.Services
 
         public async Task<VersionInfo> GetCurrentBMCVersionAsync()
         {
-            return await _ftpUpdateService.GetCurrentVersionAsync(_config.BMCPath);
+            return await VersionDetector.GetCurrentVersionAsync(_config.BMCPath);
         }
 
         public bool IsApplicationRunning(string processName)
         {
-            return _ftpUpdateService.IsApplicationRunning(processName);
+            return ProcessManager.IsApplicationRunning(processName);
         }
 
         public void StopRunningApplications(string processName)
         {
-            _ftpUpdateService.StopRunningApplications(processName);
+            ProcessManager.StopRunningApplications(processName);
         }
 
         public async Task WriteUpdateLogAsync(string logContent, string logType = "BMC")
@@ -107,5 +104,6 @@ namespace Updater.Services
             var targetPath = logType == "BMC" ? _config.BMCPath : _config.WebParamPath;
             await UpdaterLogger.WriteUpdateLogAsync(logContent, targetPath);
         }
+
     }
 }

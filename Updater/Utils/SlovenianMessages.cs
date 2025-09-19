@@ -2,14 +2,13 @@ namespace Updater.Utils
 {
     public static class SlovenianMessages
     {
-        // Main UI Messages
         public const string CloseBMCPrograms = "Zapri vse BMC programe!";
         public const string CloseWebParamPrograms = "Zapri vse WebParam programe!";
         public const string Confirm = "Potrdi";
         public const string UpdateFailed = "Posodobitev ni uspela";
         public const string UnknownError = "Neznana napaka";
         public const string UpdateSuccessful = "Posodobitev uspešna";
-        public const string DownloadSuccessful = "Prenos {0} uspel!"; // {0} = method (FTP/GitHub)
+        public const string DownloadSuccessful = "Prenos {0} uspel!";
         public const string VersionError = "Napaka pri verzijah";
         public const string WillUseFtpDownload = "Uporabil bom FTP prenos.";
         public const string SelectedVersion = "Izbrana verzija: {0}\nDatoteke za prenos: {1}";
@@ -18,7 +17,6 @@ namespace Updater.Utils
         public const string NoSelection = "Ni izbire";
         public const string PleaseSelectVersion = "Prosim izberite verzijo.";
 
-        // Progress Messages
         public const string StartingGitHubDownload = "Začenjam GitHub prenos...";
         public const string StartingFtpDownload = "Začenjam FTP prenos...";
         public const string CountingFiles = "Štejem datoteke...";
@@ -39,7 +37,6 @@ namespace Updater.Utils
         public const string CouldNotDownload = "Ne morem prenesti {0} - {1}. Poskus preimenovanja ni uspel: {2}";
         public const string DownloadFailed = "Prenos ni uspel za {0}: {1}. Ustavljam vse prenose.";
 
-        // Update Results
         public const string BMCStillRunning = "BMC aplikacija še vedno teče in je ni mogoče ustaviti. Prosim zaprite BMC ročno pred posodobitvijo.";
         public const string BMCUpdateFailed = "BMC posodobitev ni uspela: {0}";
         public const string WebParamUpdateFailed = "WebParam posodobitev ni uspela: {0}";
@@ -51,7 +48,6 @@ namespace Updater.Utils
         public const string DownloadedFilesCount = "Preneseno {0} datotek";
         public const string FinalizingTransfer = "Dokončujem prenos datotek...";
 
-        // File operations
         public const string FileDoesNotExist = "Datoteka ne obstaja";
         public const string FileInUseByProcesses = "Datoteko uporabljajo BMC procesi: {0}";
         public const string FileAvailableForWriting = "Datoteka je na voljo za pisanje";
@@ -62,7 +58,6 @@ namespace Updater.Utils
         public const string CouldNotReplaceOrRename = "Ne morem zamenjati ali preimenovati datoteke v uporabi: {0}";
         public const string FailedToRenameLockedFile = "Napaka pri preimenovanju zaklenjene datoteke {0}: {1}";
 
-        // Auto-update specific messages
         public const string AutoUpdateStarted = "Samodejna posodobitev začeta";
         public const string AutoUpdateCompleted = "Samodejna posodobitev končana";
         public const string AutoUpdateFailed = "Samodejna posodobitev ni uspela";

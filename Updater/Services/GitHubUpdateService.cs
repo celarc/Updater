@@ -1,11 +1,8 @@
-﻿using System;
-using System.ComponentModel;
-using System.IO;
+using System;
 using System.Linq;
-using System.Net.Http;
 using System.Threading.Tasks;
-using Updater.Configuration;
 using Updater.Models;
+using Updater.Utils;
 
 namespace Updater.Services
 {
@@ -24,7 +21,6 @@ namespace Updater.Services
 
         public async Task<VersionInfo> GetCurrentVersionAsync(string applicationPath)
         {
-            // Use the same improved version detection as FTP service
             var ftpService = new FtpUpdateService();
             return await ftpService.GetCurrentVersionAsync(applicationPath);
         }
@@ -43,9 +39,9 @@ namespace Updater.Services
                 {
                     process.Kill();
                 }
-                catch
+                catch (Exception ex)
                 {
-                    // Ignore errors when killing processes
+                    UpdaterLogger.LogWarning($"Failed to kill process {process.ProcessName}: {ex.Message}");
                 }
             }
         }

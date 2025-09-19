@@ -76,7 +76,6 @@ namespace Updater
             var release = gridView.GetRow(e.ControllerRow) as GitHubRelease;
             if (release != null && IsCurrentVersion(release.Verzija))
             {
-                //gridView.UnselectRow(e.ControllerRow);
             }
         }
 
@@ -89,11 +88,6 @@ namespace Updater
                 if (release != null && IsCurrentVersion(release.Verzija))
                 {
                     simpleButtonSelect.Enabled = false;
-                    //int nextRow = FindNextSelectableRow(gridView, e.FocusedRowHandle);
-                    //if (nextRow >= 0)
-                    //{
-                    //    gridView.FocusedRowHandle = nextRow;
-                    //}
                 }
                 else simpleButtonSelect.Enabled = true;
             }

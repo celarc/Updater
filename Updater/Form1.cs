@@ -1,4 +1,3 @@
-﻿// Form1.cs - Refactored for C# 7.3 with GitHub Integration
 using System;
 using System.Linq;
 using System.Threading.Tasks;
@@ -7,7 +6,6 @@ using DevExpress.XtraEditors;
 using Updater.Services;
 using Updater.Models;
 using Updater.Utils;
-using System.Diagnostics.Eventing.Reader;
 
 namespace Updater
 {
@@ -24,7 +22,6 @@ namespace Updater
             InitializeComponent();
             _updateManager = new UpdateManager();
             _commandLineHandler = new CommandLineHandler();
-            InitializeForm();
         }
 
         private async void Form1_Load(object sender, EventArgs e)
@@ -35,10 +32,6 @@ namespace Updater
             if(panel1.Visible)await GetLatestGitHubVersion(true);
         }
 
-        private void InitializeForm()
-        {
-            //panel1.Visible = true;
-        }
 
         private async Task HandleCommandLineArguments()
         {
@@ -101,8 +94,6 @@ namespace Updater
             {
                 try
                 {
-                    // Increase delay to ensure file operations are complete
-                    // Use longer delays for GitHub updates as they may need more time
                     await Task.Delay(baseDelay * attempt);
 
                     UpdaterLogger.LogInfo($"Attempting to load current version (attempt {attempt}/{maxRetries}){(isAfterGitHubUpdate ? " after GitHub update" : "")}");
@@ -125,19 +116,16 @@ namespace Updater
 
                     if (attempt == maxRetries)
                     {
-                        // Final attempt failed
                         UpdaterLogger.LogError($"Could not load current version after {maxRetries} attempts", ex);
                         lCurrentVersion.Text = "Neznana";
                         return;
                     }
 
-                    // Wait before retrying - longer waits for GitHub updates
                     await Task.Delay(isAfterGitHubUpdate ? 2000 : 1000);
                 }
             }
         }
 
-        // BMC Stable Update
         private async void ButtonUpdateStable_Click(object sender, EventArgs e)
         {
             if (_updateManager.IsApplicationRunning("BMC"))
@@ -156,7 +144,6 @@ namespace Updater
             }
         }
 
-        // BMC Beta Update
         private async void ButtonUpdateBeta_Click(object sender, EventArgs e)
         {
             if (_updateManager.IsApplicationRunning("BMC"))
@@ -169,7 +156,6 @@ namespace Updater
             await PerformUpdate(UpdateType.BMCBeta);
         }
 
-        // WebParam Update
         private async void ButtonUpdateWebParam_Click(object sender, EventArgs e)
         {
             if (_updateManager.IsApplicationRunning("WebParam"))
@@ -269,10 +255,6 @@ namespace Updater
                 richTextBox1.ScrollToCaret();
             }
 
-            //if (!string.IsNullOrEmpty(progress.StatusMessage))
-            //{
-            //    progressBar.Properties.DisplayFormat.FormatString = progress.StatusMessage;
-            //}
         }
 
         private DevExpress.XtraEditors.ProgressBarControl GetProgressBarForUpdateType(UpdateType updateType)
@@ -327,11 +309,8 @@ namespace Updater
 
             if (result.Success)
             {
-                // Refresh the current version display immediately after successful update
-                // Pass flag to indicate if this was a GitHub update for better timing
                 await LoadCurrentVersion(isGitHubUpdate);
 
-                // Force UI refresh
                 lCurrentVersion.Refresh();
                 Application.DoEvents();
 
@@ -345,7 +324,6 @@ namespace Updater
             }
         }
 
-        // Version Selection Methods
         private async void ButtonSelectBetaVersion_Click(object sender, EventArgs e)
         {
             await SelectGitHubVersion(true);
