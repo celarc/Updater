@@ -256,6 +256,9 @@ namespace Updater
 
                                 try
                                 {
+                                    // Clean up old backup files before creating a new one
+                                    UpdaterLogger.CleanupOldBackupFiles(targetFile);
+
                                     var backupFile = targetFile + ".backup." + DateTime.Now.Ticks;
                                     File.Move(targetFile, backupFile);
                                     progress?.Report(UpdateProgress.Create(

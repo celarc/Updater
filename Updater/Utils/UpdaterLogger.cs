@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using Updater.Configuration;
 
@@ -37,13 +38,6 @@ namespace Updater.Utils
                     var logEntry = $"{timestamp} [{level}] {message}{Environment.NewLine}";
 
                     File.AppendAllText(logPath, logEntry);
-
-                    // Also write to updater's own directory for debugging
-                    var debugLogPath = GetDebugLogPath();
-                    if (debugLogPath != logPath)
-                    {
-                        File.AppendAllText(debugLogPath, logEntry);
-                    }
                 }
             }
             catch
@@ -114,6 +108,50 @@ namespace Updater.Utils
                     // Silently fail if logging doesn't work
                 }
             });
+        }
+
+        public static void CleanupOldBackupFiles(string originalFilePath)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(originalFilePath))
+                    return;
+
+                var directory = Path.GetDirectoryName(originalFilePath);
+                var fileName = Path.GetFileName(originalFilePath);
+                var backupPattern = fileName + ".backup.*";
+
+                if (directory == null)
+                    return;
+
+                var backupFiles = Directory.GetFiles(directory, backupPattern)
+                    .Where(f => f != originalFilePath)
+                    .Select(f => new FileInfo(f))
+                    .OrderByDescending(f => f.CreationTime)
+                    .ToList();
+
+                if (backupFiles.Count == 0)
+                    return;
+
+                // Delete all existing backup files since we're about to create a new one
+                var filesToDelete = backupFiles.ToList();
+
+                foreach (var fileToDelete in filesToDelete)
+                {
+                    try
+                    {
+                        File.Delete(fileToDelete.FullName);
+                    }
+                    catch
+                    {
+                        // Silently continue if deletion fails
+                    }
+                }
+            }
+            catch
+            {
+                // Silently fail if cleanup doesn't work
+            }
         }
     }
 }

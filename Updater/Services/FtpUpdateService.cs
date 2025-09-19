@@ -192,6 +192,9 @@ namespace Updater.Services
                     // Try to rename the locked file as backup
                     try
                     {
+                        // Clean up old backup files before creating a new one
+                        UpdaterLogger.CleanupOldBackupFiles(targetFile);
+
                         var backupFile = targetFile + ".backup." + DateTime.Now.Ticks;
                         File.Move(targetFile, backupFile);
                         UpdaterLogger.LogInfo($"Renamed locked file: {fileInfo.Name} to backup");
@@ -407,6 +410,9 @@ namespace Updater.Services
                         return new VersionInfo { Version = "Unknown", Channel = "Unknown" };
                     }
 
+                    // Force file system flush to ensure latest file content
+                    ForceFileSystemFlush(exePath);
+
                     // Verify file is not locked and can be accessed
                     if (!IsFileAccessible(exePath))
                     {
@@ -504,6 +510,25 @@ namespace Updater.Services
             }
         }
 
+        private void ForceFileSystemFlush(string filePath)
+        {
+            try
+            {
+                // Force flush by opening and closing the file
+                using (var stream = File.Open(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+                {
+                    stream.Flush();
+                }
+
+                // Additional small delay to ensure file system sync
+                System.Threading.Thread.Sleep(100);
+            }
+            catch
+            {
+                // Ignore flush errors - file might be locked temporarily
+            }
+        }
+
         private VersionInfo TryGetAssemblyVersionInfo(string exePath, string fallbackVersion)
         {
             const int maxRetries = 3;
@@ -514,50 +539,73 @@ namespace Updater.Services
                 {
                     UpdaterLogger.LogInfo($"Attempting to load assembly (attempt {attempt}/{maxRetries}): {exePath}");
 
-                    var assembly = System.Reflection.Assembly.LoadFile(exePath);
-
-                    // Check InformationalVersion attribute
-                    var informationalVersionAttr = assembly.GetCustomAttributes(typeof(System.Reflection.AssemblyInformationalVersionAttribute), false)
-                        .Cast<System.Reflection.AssemblyInformationalVersionAttribute>()
-                        .FirstOrDefault();
-
-                    if (informationalVersionAttr != null)
+                    // Force file system sync and add a small delay
+                    if (attempt > 1)
                     {
-                        var informationalVersion = informationalVersionAttr.InformationalVersion ?? "";
-                        if (!string.IsNullOrEmpty(informationalVersion))
+                        System.Threading.Thread.Sleep(1000 * attempt);
+                    }
+
+                    // Use a unique temporary copy to avoid caching issues
+                    var tempPath = Path.Combine(Path.GetTempPath(), $"BMC_temp_{Guid.NewGuid()}.exe");
+                    File.Copy(exePath, tempPath, true);
+
+                    try
+                    {
+                        var assembly = System.Reflection.Assembly.LoadFile(tempPath);
+
+                        // Check InformationalVersion attribute
+                        var informationalVersionAttr = assembly.GetCustomAttributes(typeof(System.Reflection.AssemblyInformationalVersionAttribute), false)
+                            .Cast<System.Reflection.AssemblyInformationalVersionAttribute>()
+                            .FirstOrDefault();
+
+                        if (informationalVersionAttr != null)
                         {
-                            var parsed = VersionInfo.ParseFromExecutable(informationalVersion);
-                            if (parsed.Channel != "Unknown")
+                            var informationalVersion = informationalVersionAttr.InformationalVersion ?? "";
+                            if (!string.IsNullOrEmpty(informationalVersion))
                             {
-                                UpdaterLogger.LogInfo($"Found version in InformationalVersion: {parsed.DisplayVersion}");
-                                return parsed;
+                                var parsed = VersionInfo.ParseFromExecutable(informationalVersion);
+                                if (parsed.Channel != "Unknown")
+                                {
+                                    UpdaterLogger.LogInfo($"Found version in InformationalVersion: {parsed.DisplayVersion}");
+                                    return parsed;
+                                }
                             }
                         }
-                    }
 
-                    // Check AssemblyConfiguration attribute
-                    var configurationAttr = assembly.GetCustomAttributes(typeof(System.Reflection.AssemblyConfigurationAttribute), false)
-                        .Cast<System.Reflection.AssemblyConfigurationAttribute>()
-                        .FirstOrDefault();
+                        // Check AssemblyConfiguration attribute
+                        var configurationAttr = assembly.GetCustomAttributes(typeof(System.Reflection.AssemblyConfigurationAttribute), false)
+                            .Cast<System.Reflection.AssemblyConfigurationAttribute>()
+                            .FirstOrDefault();
 
-                    if (configurationAttr != null)
-                    {
-                        var configuration = configurationAttr.Configuration ?? "";
-                        if (configuration == "BETA" || configuration == "STABLE")
+                        if (configurationAttr != null)
                         {
-                            var result = new VersionInfo
+                            var configuration = configurationAttr.Configuration ?? "";
+                            if (configuration == "BETA" || configuration == "STABLE")
                             {
-                                Channel = configuration,
-                                Version = fallbackVersion ?? "Unknown"
-                            };
-                            UpdaterLogger.LogInfo($"Found version in AssemblyConfiguration: {result.DisplayVersion}");
-                            return result;
+                                var result = new VersionInfo
+                                {
+                                    Channel = configuration,
+                                    Version = fallbackVersion ?? "Unknown"
+                                };
+                                UpdaterLogger.LogInfo($"Found version in AssemblyConfiguration: {result.DisplayVersion}");
+                                return result;
+                            }
                         }
-                    }
 
-                    // Assembly loaded successfully but no version info found
-                    UpdaterLogger.LogInfo("Assembly loaded but no version information found in attributes");
-                    return null;
+                        // Assembly loaded successfully but no version info found
+                        UpdaterLogger.LogInfo("Assembly loaded but no version information found in attributes");
+                        return null;
+                    }
+                    finally
+                    {
+                        // Clean up temp file
+                        try
+                        {
+                            if (File.Exists(tempPath))
+                                File.Delete(tempPath);
+                        }
+                        catch { }
+                    }
                 }
                 catch (Exception ex)
                 {
