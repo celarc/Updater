@@ -181,7 +181,8 @@ namespace Updater
                 bool isAdmin = IsRunningAsAdministrator();
                 if (!isAdmin)
                 {
-                    UpdaterLogger.LogInfo("Updater is not running as administrator. OpenFiles detection may not work.");
+                    UpdaterLogger.LogInfo("Updater is not running as administrator. Skipping OpenFiles detection.");
+                    return false; // Skip OpenFiles entirely if not admin
                 }
 
                 // Determine the correct path to openfiles.exe based on system architecture

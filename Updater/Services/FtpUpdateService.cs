@@ -177,14 +177,26 @@ namespace Updater.Services
 
                 if (File.Exists(targetFile) && IsFileInUse(targetFile))
                 {
-                    try
+                    UpdaterLogger.LogInfo($"File {fileInfo.Name} is in use, attempting to free it");
+
+                    // Try to kill processes using the file (same as GitHub download)
+                    if (!TryKillProcessesUsingFile(targetFile))
                     {
-                        FileOperations.CreateBackupFile(targetFile);
+                        // Fallback to backup file creation
+                        try
+                        {
+                            FileOperations.CreateBackupFile(targetFile);
+                            UpdaterLogger.LogInfo($"Created backup for locked file: {fileInfo.Name}");
+                        }
+                        catch (Exception ex)
+                        {
+                            UpdaterLogger.LogWarning($"Could not rename locked file: {fileInfo.Name} - {ex.Message}");
+                            return 0;
+                        }
                     }
-                    catch (Exception)
+                    else
                     {
-                        UpdaterLogger.LogWarning($"Could not rename locked file: {fileInfo.Name}");
-                        return 0;
+                        UpdaterLogger.LogInfo($"Successfully freed file: {fileInfo.Name}");
                     }
                 }
 
@@ -326,6 +338,65 @@ namespace Updater.Services
         public void StopRunningApplications(string processName)
         {
             ProcessManager.StopRunningApplications(processName);
+        }
+
+        private bool TryKillProcessesUsingFile(string filePath)
+        {
+            try
+            {
+                UpdaterLogger.LogInfo($"Attempting to free file: {filePath}");
+
+                // Get the target directory and file name
+                var targetDirectory = Path.GetDirectoryName(filePath);
+                var fileName = Path.GetFileNameWithoutExtension(filePath);
+
+                // Check if BMC processes are running from the target directory
+                if (ProcessManager.IsApplicationRunningFromPath("BMC", targetDirectory))
+                {
+                    UpdaterLogger.LogInfo("Stopping BMC processes from target directory");
+                    ProcessManager.StopApplicationsFromPath("BMC", targetDirectory);
+
+                    // Wait for processes to fully terminate
+                    System.Threading.Thread.Sleep(2000);
+
+                    // Force garbage collection to help release file handles
+                    GC.Collect();
+                    GC.WaitForPendingFinalizers();
+                    GC.Collect();
+
+                    // Check if file is now available
+                    if (!FileOperations.IsFileInUse(filePath))
+                    {
+                        UpdaterLogger.LogInfo("File is now available after stopping processes");
+                        return true;
+                    }
+                }
+
+                // Check if specific file process is running
+                if (ProcessManager.IsApplicationRunning(fileName))
+                {
+                    UpdaterLogger.LogInfo($"Stopping {fileName} processes");
+                    ProcessManager.StopRunningApplications(fileName);
+
+                    // Wait for processes to terminate
+                    System.Threading.Thread.Sleep(2000);
+
+                    // Check if file is now available
+                    if (!FileOperations.IsFileInUse(filePath))
+                    {
+                        UpdaterLogger.LogInfo($"File is now available after stopping {fileName} processes");
+                        return true;
+                    }
+                }
+
+                UpdaterLogger.LogWarning("Could not free the file through process termination");
+                return false;
+            }
+            catch (Exception ex)
+            {
+                UpdaterLogger.LogError($"Error while trying to kill processes using file: {ex.Message}", ex);
+                return false;
+            }
         }
     }
 }

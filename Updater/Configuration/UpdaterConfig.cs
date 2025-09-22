@@ -1,6 +1,7 @@
 ﻿using System;
 using System.IO;
 using System.Xml;
+using Updater.Utils;
 
 namespace Updater.Configuration
 {
@@ -75,7 +76,23 @@ namespace Updater.Configuration
                 var bmcPathNode = xmlDoc.GetElementsByTagName("POT_BMC");
                 if (bmcPathNode.Count > 0 && !string.IsNullOrEmpty(bmcPathNode[0].InnerText))
                 {
-                    BMCPath = bmcPathNode[0].InnerText;
+                    var configPath = bmcPathNode[0].InnerText.Trim();
+                    BMCPath = configPath;
+
+                    // Log the path we're using
+                    try
+                    {
+                        UpdaterLogger.LogInfo($"BMC Path loaded from BMC.ini: '{BMCPath}'");
+
+                        // Also check if there's a share path
+                        var sharePathNode = xmlDoc.GetElementsByTagName("POT_BMC_SHARE");
+                        if (sharePathNode.Count > 0 && !string.IsNullOrEmpty(sharePathNode[0].InnerText))
+                        {
+                            var sharePath = sharePathNode[0].InnerText.Trim();
+                            UpdaterLogger.LogInfo($"Found BMC Share Path: '{sharePath}' - but using local path: '{BMCPath}'");
+                        }
+                    }
+                    catch { } // Don't let logging errors break config loading
                 }
 
                 var webParamPathNode = xmlDoc.GetElementsByTagName("POT_WEB_PARAM");
