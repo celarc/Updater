@@ -15,7 +15,7 @@ namespace Updater.Configuration
         public string FtpUrl { get; private set; } = "bmc.si";
         public string FtpUsername { get; private set; } = "updater@bmc.si";
         public string FtpPassword { get; private set; } = "fcc1b727289ac03db7e76f6291039923";
-        public string GitHubPersonalAccessToken { get; private set; } = "";
+        public string GitHubPersonalAccessToken { get; private set; } = "11A7BA7EQ0aXB3OGiwCLUz_Jr0k6ezyRjfweNzFwvfHhL97S2r7M0kyffpLdjbT8jZ32V54J5QKV94Vb3U";
 
         public int NetworkFileRetryAttempts { get; private set; } = 10;
         public int NetworkFileRetryDelayMs { get; private set; } = 1000;
@@ -79,20 +79,6 @@ namespace Updater.Configuration
                     var configPath = bmcPathNode[0].InnerText.Trim();
                     BMCPath = configPath;
 
-                    // Log the path we're using
-                    try
-                    {
-                        UpdaterLogger.LogInfo($"BMC Path loaded from BMC.ini: '{BMCPath}'");
-
-                        // Also check if there's a share path
-                        var sharePathNode = xmlDoc.GetElementsByTagName("POT_BMC_SHARE");
-                        if (sharePathNode.Count > 0 && !string.IsNullOrEmpty(sharePathNode[0].InnerText))
-                        {
-                            var sharePath = sharePathNode[0].InnerText.Trim();
-                            UpdaterLogger.LogInfo($"Found BMC Share Path: '{sharePath}' - but using local path: '{BMCPath}'");
-                        }
-                    }
-                    catch { } // Don't let logging errors break config loading
                 }
 
                 var webParamPathNode = xmlDoc.GetElementsByTagName("POT_WEB_PARAM");

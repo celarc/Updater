@@ -213,7 +213,8 @@ namespace Updater.Services
                         $"Prenašam: {fileInfo.Name}", fileInfo.Name));
                 }
 
-                var transferResult = session.GetFiles(sourceFile, localPath, false, transferOptions);
+                var localDestination = localPath.EndsWith("\\") ? localPath : localPath + "\\";
+                var transferResult = session.GetFiles(sourceFile, localDestination, false, transferOptions);
                 transferResult.Check();
 
                 UpdaterLogger.LogInfo($"Successfully downloaded: {fileInfo.Name}");
