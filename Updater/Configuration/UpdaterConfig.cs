@@ -13,8 +13,8 @@ namespace Updater.Configuration
         public string BMCPath { get; private set; } = @"E:\BMC\";
         public string WebParamPath { get; private set; } = @"C:\inetpub\WebParam\";
         public string FtpUrl { get; private set; } = "bmc.si";
-        public string FtpUsername { get; private set; } = "updater@bmc.si";
-        public string FtpPassword { get; private set; } = "fcc1b727289ac03db7e76f6291039923";
+        public string FtpUsername { get; private set; }
+        public string FtpPassword { get; private set; }
         public string GitHubPersonalAccessToken { get; private set; } = "11A7BA7EQ0aXB3OGiwCLUz_Jr0k6ezyRjfweNzFwvfHhL97S2r7M0kyffpLdjbT8jZ32V54J5QKV94Vb3U";
 
         public int NetworkFileRetryAttempts { get; private set; } = 10;
@@ -85,6 +85,18 @@ namespace Updater.Configuration
                 if (webParamPathNode.Count > 0 && !string.IsNullOrEmpty(webParamPathNode[0].InnerText))
                 {
                     WebParamPath = webParamPathNode[0].InnerText;
+                }
+
+                var ftpUsernameNode = xmlDoc.GetElementsByTagName("FTP_USERNAME");
+                if (ftpUsernameNode.Count > 0 && !string.IsNullOrEmpty(ftpUsernameNode[0].InnerText))
+                {
+                    FtpUsername = ftpUsernameNode[0].InnerText.Trim();
+                }
+
+                var ftpPasswordNode = xmlDoc.GetElementsByTagName("FTP_PASSWORD");
+                if (ftpPasswordNode.Count > 0 && !string.IsNullOrEmpty(ftpPasswordNode[0].InnerText))
+                {
+                    FtpPassword = ftpPasswordNode[0].InnerText.Trim();
                 }
 
                 var networkRetryAttemptsNode = xmlDoc.GetElementsByTagName("NETWORK_RETRY_ATTEMPTS");
