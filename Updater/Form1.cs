@@ -341,8 +341,11 @@ namespace Updater
                 var allReleases = await updater.GetReleases();
 
                 var filteredReleases = isBeta
-                    ? allReleases.Where(r => r.Verzija.Contains("BETA")).ToList()
-                    : allReleases.Where(r => r.Verzija.Contains("STABLE")).ToList();
+                    ? allReleases.Where(r => r.Verzija.IndexOf("BETA", StringComparison.OrdinalIgnoreCase) >= 0).ToList()
+                    : allReleases.Where(r => r.Verzija.IndexOf("STABLE", StringComparison.OrdinalIgnoreCase) >= 0).ToList();
+
+                if (filteredReleases.Count == 0)
+                    return;
 
                 if(isBeta) lLatestBeta.Text = filteredReleases[0].Ime;
                 else lLastVersion.Text = filteredReleases[0].Ime;
@@ -362,8 +365,15 @@ namespace Updater
                 var allReleases = await updater.GetReleases();
 
                 var filteredReleases = isBeta
-                    ? allReleases.Where(r => r.Verzija.Contains("BETA")).ToList()
-                    : allReleases.Where(r => r.Verzija.Contains("STABLE")).ToList();
+                    ? allReleases.Where(r => r.Verzija.IndexOf("BETA", StringComparison.OrdinalIgnoreCase) >= 0).ToList()
+                    : allReleases.Where(r => r.Verzija.IndexOf("STABLE", StringComparison.OrdinalIgnoreCase) >= 0).ToList();
+
+                if (filteredReleases.Count == 0)
+                {
+                    XtraMessageBox.Show(isBeta ? "Ni BETA verzij na GitHub." : "Ni STABLE verzij na GitHub.",
+                        "Info", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    return;
+                }
 
                 using (var versionForm = new VerzijeGrid(filteredReleases, _currentVersion?.DisplayVersion))
                 {
