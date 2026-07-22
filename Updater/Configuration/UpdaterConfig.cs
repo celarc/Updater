@@ -15,6 +15,16 @@ namespace Updater.Configuration
         public string FtpUrl { get; private set; } = "bmc.si";
         public string FtpUsername { get; private set; }
         public string FtpPassword { get; private set; }
+        /// <summary>Naslov HTTP update endpointa (privzeto https://bmc.si/servis/update.php); v BMC.ini ga prepiše vozlišče UPDATE_URL.</summary>
+        public string UpdateEndpointUrl { get; private set; } = Constants.UPDATE_ENDPOINT_URL;
+        private string _updateUsername;
+        private string _updatePassword;
+        /// <summary>Uporabnik za Basic auth na update.php (UPDATE_USERNAME iz BMC.ini); če ni nastavljen, se uporabi FTP_USERNAME.</summary>
+        public string UpdateUsername => !string.IsNullOrEmpty(_updateUsername) ? _updateUsername : FtpUsername;
+        /// <summary>Geslo za Basic auth na update.php (UPDATE_PASSWORD iz BMC.ini); če ni nastavljeno, se uporabi FTP_PASSWORD.</summary>
+        public string UpdatePassword => !string.IsNullOrEmpty(_updatePassword) ? _updatePassword : FtpPassword;
+        /// <summary>Varovalka: UPDATE_DISABLE_HTTP=1 (ali true) v BMC.ini izklopi HTTP prenos in vsili stari FTP - brez ponovnega builda.</summary>
+        public bool DisableHttpUpdate { get; private set; }
         public string GitHubPersonalAccessToken { get; private set; } = "11A7BA7EQ0aXB3OGiwCLUz_Jr0k6ezyRjfweNzFwvfHhL97S2r7M0kyffpLdjbT8jZ32V54J5QKV94Vb3U";
 
         public int NetworkFileRetryAttempts { get; private set; } = 10;
@@ -97,6 +107,32 @@ namespace Updater.Configuration
                 if (ftpPasswordNode.Count > 0 && !string.IsNullOrEmpty(ftpPasswordNode[0].InnerText))
                 {
                     FtpPassword = ftpPasswordNode[0].InnerText.Trim();
+                }
+
+                var updateUrlNode = xmlDoc.GetElementsByTagName(Constants.UPDATE_URL_NODE);
+                if (updateUrlNode.Count > 0 && !string.IsNullOrEmpty(updateUrlNode[0].InnerText))
+                {
+                    UpdateEndpointUrl = updateUrlNode[0].InnerText.Trim();
+                }
+
+                var updateUsernameNode = xmlDoc.GetElementsByTagName(Constants.UPDATE_USERNAME_NODE);
+                if (updateUsernameNode.Count > 0 && !string.IsNullOrEmpty(updateUsernameNode[0].InnerText))
+                {
+                    _updateUsername = updateUsernameNode[0].InnerText.Trim();
+                }
+
+                var updatePasswordNode = xmlDoc.GetElementsByTagName(Constants.UPDATE_PASSWORD_NODE);
+                if (updatePasswordNode.Count > 0 && !string.IsNullOrEmpty(updatePasswordNode[0].InnerText))
+                {
+                    _updatePassword = updatePasswordNode[0].InnerText.Trim();
+                }
+
+                var disableHttpNode = xmlDoc.GetElementsByTagName(Constants.UPDATE_DISABLE_HTTP_NODE);
+                if (disableHttpNode.Count > 0 && !string.IsNullOrEmpty(disableHttpNode[0].InnerText))
+                {
+                    var value = disableHttpNode[0].InnerText.Trim();
+                    DisableHttpUpdate = value == "1" ||
+                        value.Equals("true", StringComparison.OrdinalIgnoreCase);
                 }
 
                 var networkRetryAttemptsNode = xmlDoc.GetElementsByTagName("NETWORK_RETRY_ATTEMPTS");

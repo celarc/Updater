@@ -51,6 +51,11 @@ namespace Updater
             }
         }
 
+        /// <summary>
+        /// Samodejna posodobitev prek ukazne vrstice (updateBMC / updateWebParam):
+        /// od uvedbe HTTP+SHA256 posodabljanja uporablja HttpStable (s samodejnim
+        /// FTP fallbackom v UpdateManager) namesto prejšnjega direktnega FtpStable.
+        /// </summary>
         private async Task HandleAutomaticUpdate(UpdateType updateType)
         {
             try
@@ -64,7 +69,7 @@ namespace Updater
 
                 if (updateType == UpdateType.BMC)
                 {
-                    result = await _updateManager.UpdateBMCAsync(UpdateSource.FtpStable, progress, null);
+                    result = await _updateManager.UpdateBMCAsync(UpdateSource.HttpStable, progress, null);
                 }
                 else
                 {
@@ -135,12 +140,66 @@ namespace Updater
                 return;
             }
 
-            var downloadSource = _selectedStableRelease != null ? "iz internet" : "iz FTP";
+            var downloadSource = _selectedStableRelease != null ? "iz internet" : "s strežnika";
             var message = $"Preveri in prenesi posodobitve za BMC {downloadSource}?";
 
             if (MessageBox.Show(message, SlovenianMessages.Confirm, MessageBoxButtons.OKCancel) == DialogResult.OK)
             {
                 await PerformUpdate(UpdateType.BMCStable);
+            }
+        }
+
+        /// <summary>
+        /// Gumb "Stari način (FTP)" pri STABLE: vsili star FTP prenos (brez HTTP poskusa),
+        /// točno tak, kot je bil pred uvedbo HTTP+SHA256 posodabljanja.
+        /// </summary>
+        private async void ButtonUpdateStableFtp_Click(object sender, EventArgs e)
+        {
+            if (_updateManager.IsApplicationRunning("BMC"))
+            {
+                MessageBox.Show(SlovenianMessages.CloseBMCPrograms);
+                UpdaterLogger.LogWarning("BMC process running, stable FTP update cancelled by user");
+                return;
+            }
+
+            var message = "Preveri in prenesi posodobitve za BMC po starem načinu (FTP)?";
+            if (MessageBox.Show(message, SlovenianMessages.Confirm, MessageBoxButtons.OKCancel) == DialogResult.OK)
+            {
+                await PerformUpdate(UpdateType.BMCStable, forceFtp: true);
+            }
+        }
+
+        /// <summary>
+        /// Gumb "Stari način (FTP)" pri BETA: vsili star FTP prenos iz mape /BETA/ (brez HTTP poskusa).
+        /// </summary>
+        private async void ButtonUpdateBetaFtp_Click(object sender, EventArgs e)
+        {
+            if (_updateManager.IsApplicationRunning("BMC"))
+            {
+                MessageBox.Show(SlovenianMessages.CloseBMCPrograms);
+                UpdaterLogger.LogWarning("BMC process running, beta FTP update cancelled by user");
+                return;
+            }
+
+            await PerformUpdate(UpdateType.BMCBeta, forceFtp: true);
+        }
+
+        /// <summary>
+        /// Gumb "Stari način (FTP)" pri WebParam: vsili star FTP prenos iz mape /6/ (brez HTTP poskusa).
+        /// </summary>
+        private async void ButtonUpdateWebParamFtp_Click(object sender, EventArgs e)
+        {
+            if (_updateManager.IsApplicationRunning("WebParam"))
+            {
+                MessageBox.Show(SlovenianMessages.CloseWebParamPrograms);
+                UpdaterLogger.LogWarning("WebParam process running, FTP update cancelled by user");
+                return;
+            }
+
+            var message = "Preveri in prenesi posodobitve za WebParam po starem načinu (FTP)?";
+            if (MessageBox.Show(message, SlovenianMessages.Confirm, MessageBoxButtons.OKCancel) == DialogResult.OK)
+            {
+                await PerformUpdate(UpdateType.WebParam, forceFtp: true);
             }
         }
 
@@ -172,7 +231,12 @@ namespace Updater
             }
         }
 
-        private async Task PerformUpdate(UpdateType updateType)
+        /// <summary>
+        /// Skupni tok posodobitve za vse gumbe: onemogoči gumba, določi vir
+        /// (forceFtp=true -> star FTP prenos; sicer HTTP+SHA256 oz. GitHub, če je izbrana verzija),
+        /// požene posodobitev prek UpdateManager in prikaže rezultat.
+        /// </summary>
+        private async Task PerformUpdate(UpdateType updateType, bool forceFtp = false)
         {
             try
             {
@@ -180,12 +244,14 @@ namespace Updater
                 ResetProgress(updateType);
 
                 var progress = new Progress<UpdateProgress>(p => OnUpdateProgress(p, updateType));
-                var source = DetermineUpdateSource(updateType);
+                var source = forceFtp
+                    ? (updateType == UpdateType.BMCBeta ? UpdateSource.FtpBeta : UpdateSource.FtpStable)
+                    : DetermineUpdateSource(updateType);
 
                 UpdateResult result;
                 if (updateType == UpdateType.WebParam)
                 {
-                    result = await _updateManager.UpdateWebParamAsync(progress);
+                    result = await _updateManager.UpdateWebParamAsync(progress, forceFtp);
                 }
                 else
                 {
@@ -212,15 +278,20 @@ namespace Updater
             }
         }
 
+        /// <summary>
+        /// Določi privzeti vir posodobitve: če uporabnik NI izbral konkretne GitHub verzije,
+        /// se za najnovejšo verzijo uporabi novi HTTP+SHA256 prenos (HttpBeta/HttpStable,
+        /// s samodejnim FTP fallbackom v UpdateManager); izbrana verzija gre prek GitHub.
+        /// </summary>
         private UpdateSource DetermineUpdateSource(UpdateType updateType)
         {
             if (updateType == UpdateType.BMCBeta && _selectedBetaRelease == null)
             {
-                return UpdateSource.FtpBeta;
+                return UpdateSource.HttpBeta;
             }
             else if (updateType == UpdateType.BMCStable && _selectedStableRelease == null)
             {
-                return UpdateSource.FtpStable;
+                return UpdateSource.HttpStable;
             }
             else
             {
@@ -270,22 +341,31 @@ namespace Updater
             }
         }
 
+        /// <summary>
+        /// Med posodobitvijo onemogoči (in po njej spet omogoči) OBA gumba izbranega toka -
+        /// glavni gumb in pripadajoči gumb "Stari način (FTP)".
+        /// </summary>
         private void DisableUpdateButton(UpdateType updateType, bool disable)
         {
             SimpleButton button;
+            SimpleButton ftpButton;
             switch (updateType)
             {
                 case UpdateType.BMCBeta:
                     button = downloadBetaBt;
+                    ftpButton = downloadBetaFtpBt;
                     break;
                 case UpdateType.WebParam:
                     button = downloadWebparamBT;
+                    ftpButton = downloadWebparamFtpBt;
                     break;
                 default:
                     button = downloadStableBt;
+                    ftpButton = downloadStableFtpBt;
                     break;
             }
             button.Enabled = !disable;
+            ftpButton.Enabled = !disable;
         }
 
         private void ResetProgress(UpdateType updateType)
@@ -305,7 +385,7 @@ namespace Updater
         {
             var isGitHubUpdate = (updateType == UpdateType.BMCBeta && _selectedBetaRelease != null) ||
                                 (updateType == UpdateType.BMCStable && _selectedStableRelease != null);
-            var downloadMethod = isGitHubUpdate ? "iz interneta" : "iz FTP";
+            var downloadMethod = isGitHubUpdate ? "iz interneta" : "s strežnika";
 
             if (result.Success)
             {

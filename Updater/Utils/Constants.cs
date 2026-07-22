@@ -54,5 +54,12 @@ namespace Updater.Utils
 
         // GitHub API
         public const string GITHUB_API_URL = "https://api.github.com/repos/celarc/BMC/releases";
+
+        // HTTP update endpoint (update.php)
+        public const string UPDATE_ENDPOINT_URL = "https://bmc.si/servis/update.php";
+        public const string UPDATE_URL_NODE = "UPDATE_URL";
+        public const string UPDATE_USERNAME_NODE = "UPDATE_USERNAME";
+        public const string UPDATE_PASSWORD_NODE = "UPDATE_PASSWORD";
+        public const string UPDATE_DISABLE_HTTP_NODE = "UPDATE_DISABLE_HTTP";
     }
 }
