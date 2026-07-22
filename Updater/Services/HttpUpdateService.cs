@@ -168,7 +168,8 @@ namespace Updater.Services
             {
                 response.EnsureSuccessStatusCode();
                 var json = await response.Content.ReadAsStringAsync();
-                var manifest = JsonConvert.DeserializeObject<List<UpdateManifestEntry>>(json);
+                var manifestResponse = JsonConvert.DeserializeObject<UpdateManifestResponse>(json);
+                var manifest = manifestResponse?.Files;
 
                 if (manifest == null || manifest.Count == 0)
                     throw new InvalidOperationException("Update manifest is empty");

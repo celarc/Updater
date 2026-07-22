@@ -1,12 +1,8 @@
+using System.Collections.Generic;
 using Newtonsoft.Json;
 
 namespace Updater.Models
 {
-    /// <summary>
-    /// Ena vrstica manifesta, ki ga vrne update.php (action=list):
-    /// relativna pot datoteke na strežniku, njen SHA256 hash in velikost v bajtih.
-    /// JsonProperty atributi se morajo ujemati z imeni polj v JSON odgovoru strežnika.
-    /// </summary>
     public class UpdateManifestEntry
     {
         [JsonProperty("path")]
@@ -17,5 +13,11 @@ namespace Updater.Models
 
         [JsonProperty("size")]
         public long Size { get; set; }
+    }
+
+    public class UpdateManifestResponse
+    {
+        [JsonProperty("files")]
+        public List<UpdateManifestEntry> Files { get; set; }
     }
 }
