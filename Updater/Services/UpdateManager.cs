@@ -34,6 +34,8 @@ namespace Updater.Services
         {
             try
             {
+                DeleteAppPublishFolder(_config.BMCPath);
+
                 if (ProcessManager.IsApplicationRunningFromPath("BMC", _config.BMCPath))
                 {
                     ProcessManager.StopApplicationsFromPath("BMC", _config.BMCPath);
@@ -88,6 +90,8 @@ namespace Updater.Services
         {
             try
             {
+                DeleteAppPublishFolder(_config.WebParamPath);
+
                 if (_ftpUpdateService.IsApplicationRunning("WebParam"))
                 {
                     _ftpUpdateService.StopRunningApplications("WebParam");
@@ -136,6 +140,20 @@ namespace Updater.Services
             }
 
             return await _ftpUpdateService.UpdateAsync(ftpSource, targetPath, progress);
+        }
+
+        /// <summary>
+        /// Brezpogojno izbriše mapo "app.publish" v ciljni mapi, če obstaja, brez beleženja.
+        /// </summary>
+        private static void DeleteAppPublishFolder(string targetPath)
+        {
+            try
+            {
+                var appPublishPath = Path.Combine(targetPath, "app.publish");
+                if (Directory.Exists(appPublishPath))
+                    Directory.Delete(appPublishPath, true);
+            }
+            catch { }
         }
 
         public async Task<VersionInfo> GetCurrentBMCVersionAsync()

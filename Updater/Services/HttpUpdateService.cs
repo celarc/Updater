@@ -74,8 +74,8 @@ namespace Updater.Services
                     {
                         var entry = filesToDownload[i];
                         var startPercent = (int)((double)i / filesToDownload.Count * 100);
-                        progress?.Report(UpdateProgress.Create(startPercent,
-                            string.Format(SlovenianMessages.Downloading, entry.Path), entry.Path));
+                        //progress?.Report(UpdateProgress.Create(startPercent,
+                        //    string.Format(SlovenianMessages.Downloading, entry.Path), entry.Path));
 
                         if (await DownloadFileAsync(client, channel, entry, targetPath, progress, i, filesToDownload.Count))
                         {
@@ -379,9 +379,9 @@ namespace Updater.Services
                                 ? (int)((currentFileIndex + filePercent) / totalFiles * 100)
                                 : 0;
 
-                            progress?.Report(UpdateProgress.CreateWithDetails(overallPercent,
-                                string.Format(SlovenianMessages.Downloading, entry.Path), entry.Path,
-                                bytesTransferred, totalBytes, speed, "HTTP"));
+                            //progress?.Report(UpdateProgress.CreateWithDetails(overallPercent,
+                            //    string.Format(SlovenianMessages.Downloading, entry.Path), entry.Path,
+                            //    bytesTransferred, totalBytes, speed, "HTTP"));
                         }
                     }
 

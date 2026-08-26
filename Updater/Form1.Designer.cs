@@ -70,16 +70,34 @@
             this.downloadStableBt.TabIndex = 0;
             this.downloadStableBt.Text = "Preveri posodobitve";
             this.downloadStableBt.Click += new System.EventHandler(this.ButtonUpdateStable_Click);
-            //
+            // 
             // downloadStableFtpBt
-            //
+            // 
             this.downloadStableFtpBt.Location = new System.Drawing.Point(592, 37);
             this.downloadStableFtpBt.Name = "downloadStableFtpBt";
             this.downloadStableFtpBt.Size = new System.Drawing.Size(186, 27);
             this.downloadStableFtpBt.TabIndex = 24;
             this.downloadStableFtpBt.Text = "Stari način (FTP)";
             this.downloadStableFtpBt.Click += new System.EventHandler(this.ButtonUpdateStableFtp_Click);
-            //
+            // 
+            // downloadWebparamFtpBt
+            // 
+            this.downloadWebparamFtpBt.Location = new System.Drawing.Point(592, 233);
+            this.downloadWebparamFtpBt.Name = "downloadWebparamFtpBt";
+            this.downloadWebparamFtpBt.Size = new System.Drawing.Size(186, 27);
+            this.downloadWebparamFtpBt.TabIndex = 25;
+            this.downloadWebparamFtpBt.Text = "Stari način (FTP)";
+            this.downloadWebparamFtpBt.Click += new System.EventHandler(this.ButtonUpdateWebParamFtp_Click);
+            // 
+            // downloadBetaFtpBt
+            // 
+            this.downloadBetaFtpBt.Location = new System.Drawing.Point(598, 48);
+            this.downloadBetaFtpBt.Name = "downloadBetaFtpBt";
+            this.downloadBetaFtpBt.Size = new System.Drawing.Size(186, 27);
+            this.downloadBetaFtpBt.TabIndex = 26;
+            this.downloadBetaFtpBt.Text = "Stari način (FTP)";
+            this.downloadBetaFtpBt.Click += new System.EventHandler(this.ButtonUpdateBetaFtp_Click);
+            // 
             // labelStableBMC
             // 
             this.labelStableBMC.AutoSize = true;
@@ -109,16 +127,7 @@
             this.downloadWebparamBT.TabIndex = 5;
             this.downloadWebparamBT.Text = "Preveri posodobitve";
             this.downloadWebparamBT.Click += new System.EventHandler(this.ButtonUpdateWebParam_Click);
-            //
-            // downloadWebparamFtpBt
-            //
-            this.downloadWebparamFtpBt.Location = new System.Drawing.Point(592, 233);
-            this.downloadWebparamFtpBt.Name = "downloadWebparamFtpBt";
-            this.downloadWebparamFtpBt.Size = new System.Drawing.Size(186, 27);
-            this.downloadWebparamFtpBt.TabIndex = 25;
-            this.downloadWebparamFtpBt.Text = "Stari način (FTP)";
-            this.downloadWebparamFtpBt.Click += new System.EventHandler(this.ButtonUpdateWebParamFtp_Click);
-            //
+            // 
             // progressBarControl2
             // 
             this.progressBarControl2.Location = new System.Drawing.Point(106, 233);
@@ -168,16 +177,7 @@
             this.downloadBetaBt.TabIndex = 8;
             this.downloadBetaBt.Text = "Prenesi najnovejše posodobitve";
             this.downloadBetaBt.Click += new System.EventHandler(this.ButtonUpdateBeta_Click);
-            //
-            // downloadBetaFtpBt
-            //
-            this.downloadBetaFtpBt.Location = new System.Drawing.Point(598, 48);
-            this.downloadBetaFtpBt.Name = "downloadBetaFtpBt";
-            this.downloadBetaFtpBt.Size = new System.Drawing.Size(186, 27);
-            this.downloadBetaFtpBt.TabIndex = 26;
-            this.downloadBetaFtpBt.Text = "Stari način (FTP)";
-            this.downloadBetaFtpBt.Click += new System.EventHandler(this.ButtonUpdateBetaFtp_Click);
-            //
+            // 
             // panel1
             // 
             this.panel1.Controls.Add(this.downloadBetaFtpBt);

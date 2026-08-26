@@ -136,8 +136,8 @@ namespace Updater.Services
                 else if (ShouldUpdateFile(fileInfo, localPath))
                 {
                     var startPercent = totalFiles > 0 ? (int)((double)filesProcessed / totalFiles * 100) : 0;
-                    progress?.Report(UpdateProgress.Create(startPercent,
-                        string.Format(SlovenianMessages.Downloading, fileInfo.Name), fileInfo.Name));
+                    //progress?.Report(UpdateProgress.Create(startPercent,
+                    //    string.Format(SlovenianMessages.Downloading, fileInfo.Name), fileInfo.Name));
 
                     updatedFiles += DownloadFile(session, fileInfo, remotePath, localPath, progress, filesProcessed, totalFiles);
 
