@@ -102,15 +102,20 @@ namespace Updater.Services
             }
         }
 
+        /// <summary>
+        /// Enaka logika kot Form1.DetermineUpdateSource: brez izbrane GitHub verzije
+        /// se za najnovejšo verzijo uporabi novi HTTP+SHA256 prenos (HttpBeta/HttpStable),
+        /// izbrana verzija pa gre prek GitHub. Ob spremembi posodobi obe metodi!
+        /// </summary>
         public UpdateSource DetermineUpdateSource(UpdateType updateType, GitHubRelease selectedBetaRelease, GitHubRelease selectedStableRelease)
         {
             if (updateType == UpdateType.BMCBeta && selectedBetaRelease == null)
             {
-                return UpdateSource.FtpBeta;
+                return UpdateSource.HttpBeta;
             }
             else if (updateType == UpdateType.BMCStable && selectedStableRelease == null)
             {
-                return UpdateSource.FtpStable;
+                return UpdateSource.HttpStable;
             }
             else
             {

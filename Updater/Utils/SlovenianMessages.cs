@@ -58,6 +58,14 @@ namespace Updater.Utils
         public const string CouldNotReplaceOrRename = "Ne morem zamenjati ali preimenovati datoteke v uporabi: {0}";
         public const string FailedToRenameLockedFile = "Napaka pri preimenovanju zaklenjene datoteke {0}: {1}";
 
+        public const string StartingHttpDownload = "Začenjam prenos s strežnika...";
+        public const string HttpDownloadFailed = "Prenos s strežnika ni uspel: {0}";
+        public const string FetchingManifest = "Pridobivam seznam datotek...";
+        public const string VerifyingFiles = "Preverjam datoteke...";
+        public const string HashMismatch = "Napaka pri preverjanju datoteke {0} (SHA256 se ne ujema)";
+        public const string FallingBackToFtp = "Prenos s strežnika ni uspel, uporabljam FTP...";
+        public const string FilesUpToDate = "Vse datoteke so že posodobljene.";
+
         public const string AutoUpdateStarted = "Samodejna posodobitev začeta";
         public const string AutoUpdateCompleted = "Samodejna posodobitev končana";
         public const string AutoUpdateFailed = "Samodejna posodobitev ni uspela";

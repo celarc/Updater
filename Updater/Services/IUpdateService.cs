@@ -13,12 +13,20 @@ namespace Updater.Services
         void StopRunningApplications(string processName);
     }
 
+    /// <summary>
+    /// Vir posodobitve. Ftp* = stari FTP prenos (WinSCP, primerjava po času datoteke),
+    /// GitHub = prenos izbrane starejše verzije iz GitHub releases,
+    /// Http* = novi prenos prek update.php s SHA256 primerjavo (s samodejnim FTP fallbackom).
+    /// </summary>
     public enum UpdateSource
     {
         FtpStable,
         FtpBeta,
         FtpWebParam,
         GitHub,
+        HttpStable,
+        HttpBeta,
+        HttpWebParam,
         Unknown
     }
 }

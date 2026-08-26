@@ -30,6 +30,9 @@
         {
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(Form1));
             this.downloadStableBt = new DevExpress.XtraEditors.SimpleButton();
+            this.downloadStableFtpBt = new DevExpress.XtraEditors.SimpleButton();
+            this.downloadWebparamFtpBt = new DevExpress.XtraEditors.SimpleButton();
+            this.downloadBetaFtpBt = new DevExpress.XtraEditors.SimpleButton();
             this.labelStableBMC = new System.Windows.Forms.Label();
             this.progressBarControl1 = new DevExpress.XtraEditors.ProgressBarControl();
             this.downloadWebparamBT = new DevExpress.XtraEditors.SimpleButton();
@@ -67,7 +70,16 @@
             this.downloadStableBt.TabIndex = 0;
             this.downloadStableBt.Text = "Preveri posodobitve";
             this.downloadStableBt.Click += new System.EventHandler(this.ButtonUpdateStable_Click);
-            // 
+            //
+            // downloadStableFtpBt
+            //
+            this.downloadStableFtpBt.Location = new System.Drawing.Point(592, 37);
+            this.downloadStableFtpBt.Name = "downloadStableFtpBt";
+            this.downloadStableFtpBt.Size = new System.Drawing.Size(186, 27);
+            this.downloadStableFtpBt.TabIndex = 24;
+            this.downloadStableFtpBt.Text = "Stari način (FTP)";
+            this.downloadStableFtpBt.Click += new System.EventHandler(this.ButtonUpdateStableFtp_Click);
+            //
             // labelStableBMC
             // 
             this.labelStableBMC.AutoSize = true;
@@ -97,7 +109,16 @@
             this.downloadWebparamBT.TabIndex = 5;
             this.downloadWebparamBT.Text = "Preveri posodobitve";
             this.downloadWebparamBT.Click += new System.EventHandler(this.ButtonUpdateWebParam_Click);
-            // 
+            //
+            // downloadWebparamFtpBt
+            //
+            this.downloadWebparamFtpBt.Location = new System.Drawing.Point(592, 233);
+            this.downloadWebparamFtpBt.Name = "downloadWebparamFtpBt";
+            this.downloadWebparamFtpBt.Size = new System.Drawing.Size(186, 27);
+            this.downloadWebparamFtpBt.TabIndex = 25;
+            this.downloadWebparamFtpBt.Text = "Stari način (FTP)";
+            this.downloadWebparamFtpBt.Click += new System.EventHandler(this.ButtonUpdateWebParamFtp_Click);
+            //
             // progressBarControl2
             // 
             this.progressBarControl2.Location = new System.Drawing.Point(106, 233);
@@ -147,9 +168,19 @@
             this.downloadBetaBt.TabIndex = 8;
             this.downloadBetaBt.Text = "Prenesi najnovejše posodobitve";
             this.downloadBetaBt.Click += new System.EventHandler(this.ButtonUpdateBeta_Click);
-            // 
+            //
+            // downloadBetaFtpBt
+            //
+            this.downloadBetaFtpBt.Location = new System.Drawing.Point(598, 48);
+            this.downloadBetaFtpBt.Name = "downloadBetaFtpBt";
+            this.downloadBetaFtpBt.Size = new System.Drawing.Size(186, 27);
+            this.downloadBetaFtpBt.TabIndex = 26;
+            this.downloadBetaFtpBt.Text = "Stari način (FTP)";
+            this.downloadBetaFtpBt.Click += new System.EventHandler(this.ButtonUpdateBetaFtp_Click);
+            //
             // panel1
             // 
+            this.panel1.Controls.Add(this.downloadBetaFtpBt);
             this.panel1.Controls.Add(this.lLatestBeta);
             this.panel1.Controls.Add(this.label4);
             this.panel1.Controls.Add(this.simpleButtonBetaCleanVersion);
@@ -160,7 +191,7 @@
             this.panel1.Controls.Add(this.labelBeta);
             this.panel1.Location = new System.Drawing.Point(0, 266);
             this.panel1.Name = "panel1";
-            this.panel1.Size = new System.Drawing.Size(609, 110);
+            this.panel1.Size = new System.Drawing.Size(790, 110);
             this.panel1.TabIndex = 15;
             this.panel1.Visible = false;
             // 
@@ -290,7 +321,9 @@
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(598, 377);
+            this.ClientSize = new System.Drawing.Size(790, 377);
+            this.Controls.Add(this.downloadStableFtpBt);
+            this.Controls.Add(this.downloadWebparamFtpBt);
             this.Controls.Add(this.lCurrentVersion);
             this.Controls.Add(this.lLastVersion);
             this.Controls.Add(this.label1);
@@ -323,6 +356,9 @@
         #endregion
 
         private DevExpress.XtraEditors.SimpleButton downloadStableBt;
+        private DevExpress.XtraEditors.SimpleButton downloadStableFtpBt;
+        private DevExpress.XtraEditors.SimpleButton downloadWebparamFtpBt;
+        private DevExpress.XtraEditors.SimpleButton downloadBetaFtpBt;
         private System.ComponentModel.BackgroundWorker backgroundWorker1;
         private System.Windows.Forms.Label labelStableBMC;
         private DevExpress.XtraEditors.ProgressBarControl progressBarControl1;
