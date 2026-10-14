@@ -1196,10 +1196,21 @@ namespace Updater
             }
         }
 
-        public async Task<List<GitHubRelease>> GetReleases()
+        private const int ReleasesPerPage = 30;
+        private const int MaxReleasePages = 5;
+
+        private static bool ReleaseMatchesType(GitHubRelease r, bool isBeta)
+        {
+            return r.Verzija != null &&
+                r.Verzija.IndexOf(isBeta ? "BETA" : "STABLE", StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
+        public async Task<List<GitHubRelease>> GetReleases(bool isBeta, bool stopAtFirstMatch)
         {
             try
             {
+                var matches = new List<GitHubRelease>();
+
                 using (var httpClient = new HttpClient())
                 {
                     httpClient.DefaultRequestHeaders.Add("User-Agent", "Updater");
@@ -1214,29 +1225,62 @@ namespace Updater
                             );
                     }
 
-                    var response = await httpClient.GetAsync(GitHubApiUrl);
-
-                    var content = await response.Content.ReadAsStringAsync();
-
-                    if (response.StatusCode == HttpStatusCode.NotFound)
+                    for (int page = 1; page <= MaxReleasePages; page++)
                     {
-                        throw new Exception("Repository not found or no releases exist. Please verify:");
+                        var response = await httpClient.GetAsync($"{GitHubApiUrl}?per_page={ReleasesPerPage}&page={page}");
+
+                        var content = await response.Content.ReadAsStringAsync();
+
+                        if (response.StatusCode == HttpStatusCode.NotFound)
+                        {
+                            throw new Exception("Repository not found or no releases exist. Please verify:");
+                        }
+
+                        if (!response.IsSuccessStatusCode)
+                        {
+                            throw new Exception($"GitHub API error: {response.StatusCode}\n{content}");
+                        }
+
+                        var pageReleases = JsonConvert.DeserializeObject<List<GitHubRelease>>(content);
+
+                        if (page == 1 && (pageReleases == null || pageReleases.Count == 0))
+                        {
+                            throw new Exception("API returned empty releases list despite success status");
+                        }
+
+                        if (pageReleases == null)
+                        {
+                            break;
+                        }
+
+                        UpdaterLogger.LogInfo($"Fetched GitHub releases page {page} ({pageReleases.Count} items) while searching for {(isBeta ? "BETA" : "STABLE")} releases");
+
+                        foreach (var r in pageReleases)
+                        {
+                            if (ReleaseMatchesType(r, isBeta))
+                            {
+                                matches.Add(r);
+
+                                if (stopAtFirstMatch)
+                                {
+                                    return matches;
+                                }
+                            }
+                        }
+
+                        if (pageReleases.Count < ReleasesPerPage)
+                        {
+                            break;
+                        }
+
+                        if (page == MaxReleasePages)
+                        {
+                            UpdaterLogger.LogWarning($"GetReleases: reached page cap ({MaxReleasePages} pages / {MaxReleasePages * ReleasesPerPage} releases) while collecting {(isBeta ? "BETA" : "STABLE")} releases; results may be incomplete.");
+                        }
                     }
-
-                    if (!response.IsSuccessStatusCode)
-                    {
-                        throw new Exception($"GitHub API error: {response.StatusCode}\n{content}");
-                    }
-
-                    var releases = JsonConvert.DeserializeObject<List<GitHubRelease>>(content);
-
-                    if (releases == null || releases.Count == 0)
-                    {
-                        throw new Exception("API returned empty releases list despite success status");
-                    }
-
-                    return releases;
                 }
+
+                return matches;
             }
             catch (Exception ex)
             {
