@@ -418,11 +418,7 @@ namespace Updater
             try
             {
                 var updater = new GitHubUpdater();
-                var allReleases = await updater.GetReleases();
-
-                var filteredReleases = isBeta
-                    ? allReleases.Where(r => r.Verzija.IndexOf("BETA", StringComparison.OrdinalIgnoreCase) >= 0).ToList()
-                    : allReleases.Where(r => r.Verzija.IndexOf("STABLE", StringComparison.OrdinalIgnoreCase) >= 0).ToList();
+                var filteredReleases = await updater.GetReleases(isBeta, stopAtFirstMatch: true);
 
                 if (filteredReleases.Count == 0)
                     return;
@@ -442,11 +438,7 @@ namespace Updater
             try
             {
                 var updater = new GitHubUpdater();
-                var allReleases = await updater.GetReleases();
-
-                var filteredReleases = isBeta
-                    ? allReleases.Where(r => r.Verzija.IndexOf("BETA", StringComparison.OrdinalIgnoreCase) >= 0).ToList()
-                    : allReleases.Where(r => r.Verzija.IndexOf("STABLE", StringComparison.OrdinalIgnoreCase) >= 0).ToList();
+                var filteredReleases = await updater.GetReleases(isBeta, stopAtFirstMatch: false);
 
                 if (filteredReleases.Count == 0)
                 {

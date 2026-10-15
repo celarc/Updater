@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Security.Cryptography;
@@ -31,6 +32,20 @@ namespace Updater.Services
 
         private readonly UpdaterConfig _config;
 
+        // Ko gostiteljev filter vsebine zavrne surovi prenos izvršljivih datotek z 403
+        // ("body content-type denied"), se to polje postavi na true in prenos za preostanek
+        // te posodobitvene seje teče prek base64 (text/plain). Pri strankah brez takega
+        // filtra ostane false in prenos poteka surovo (brez ~33 % režije base64).
+        private bool _useBase64;
+
+        /// <summary>
+        /// Interni signal, da je strežnik vrnil 403 (filter vsebine) - klicatelj naj preklopi
+        /// na base64 način in datoteko ponovno prenese.
+        /// </summary>
+        private sealed class ContentTypeBlockedException : Exception
+        {
+        }
+
         public HttpUpdateService()
         {
             _config = UpdaterConfig.Instance;
@@ -48,6 +63,10 @@ namespace Updater.Services
         {
             try
             {
+                // Vsak zagon znova "pretipa" stanje: začni s surovim prenosom, na base64
+                // preklopi šele, če strežnik vrne 403.
+                _useBase64 = false;
+
                 var channel = GetChannelPath(source);
 
                 using (var client = CreateHttpClient())
@@ -296,8 +315,27 @@ namespace Updater.Services
 
                 for (var attempt = 1; attempt <= 2; attempt++)
                 {
-                    var downloadedHash = await DownloadToTempFileAsync(client, channel, entry, tempFile,
-                        progress, currentFileIndex, totalFiles);
+                    string downloadedHash;
+                    try
+                    {
+                        downloadedHash = await DownloadToTempFileAsync(client, channel, entry, tempFile,
+                            progress, currentFileIndex, totalFiles);
+                    }
+                    catch (ContentTypeBlockedException)
+                    {
+                        // Strežnikov filter je zavrnil surovi prenos. Prvič: preklopi na base64
+                        // in ponovi isti poskus (brez porabe poskusa). Če smo že na base64 in
+                        // vseeno dobimo 403, gre za pravo napako (npr. avtentikacija) - propagiraj.
+                        if (_useBase64)
+                            throw;
+
+                        _useBase64 = true;
+                        UpdaterLogger.LogWarning(
+                            $"Strežnik je zavrnil surovi prenos datoteke {entry.Path} (403), preklapljam na base64 prenos");
+                        try { if (File.Exists(tempFile)) File.Delete(tempFile); } catch { }
+                        attempt--;
+                        continue;
+                    }
 
                     if (string.Equals(downloadedHash, entry.Sha256.Trim(), StringComparison.OrdinalIgnoreCase))
                     {
@@ -344,49 +382,90 @@ namespace Updater.Services
                 (channel + "/" + entry.Path.Replace('\\', '/'))
                 .Split('/')
                 .Select(Uri.EscapeDataString));
+            // Privzeto prenašamo surove bajte (polna hitrost). Ko _useBase64 postane true
+            // (gostiteljev filter je prej vrnil 403), zahtevamo base64 besedilo (text/plain),
+            // ki ga filter izvršljive vsebine ne blokira; odjemalec ga sproti dekodira.
             var url = $"{_config.UpdateEndpointUrl}?action=file&path={remotePath}";
+            if (_useBase64)
+                url += "&enc=base64";
 
             using (var response = await client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead))
             {
+                // 403 = filter vsebine je zavrnil surovi prenos. Signaliziraj klicatelju,
+                // naj preklopi na base64 in datoteko ponovno prenese.
+                if (response.StatusCode == HttpStatusCode.Forbidden)
+                    throw new ContentTypeBlockedException();
+
                 response.EnsureSuccessStatusCode();
 
-                var totalBytes = response.Content.Headers.ContentLength ?? entry.Size;
+                // Napredek po bajtih je zakomentiran spodaj; totalBytes je le informativen.
+                // Pri base64 je ContentLength večji (~+33 %) od dekodirane vsebine, zato
+                // pri base64 uporabimo velikost iz manifesta (= dekodirani bajti).
+                var totalBytes = _useBase64
+                    ? entry.Size
+                    : (response.Content.Headers.ContentLength ?? entry.Size);
                 var lastProgressReport = DateTime.MinValue;
                 var startTime = DateTime.Now;
 
                 using (var sha256 = SHA256.Create())
-                using (var responseStream = await response.Content.ReadAsStreamAsync())
+                using (var rawStream = await response.Content.ReadAsStreamAsync())
                 using (var fileStream = new FileStream(tempFile, FileMode.Create, FileAccess.Write,
                     FileShare.None, DownloadBufferSize, useAsync: true))
                 {
-                    var buffer = new byte[DownloadBufferSize];
-                    long bytesTransferred = 0;
-                    int bytesRead;
-
-                    while ((bytesRead = await responseStream.ReadAsync(buffer, 0, buffer.Length)) > 0)
+                    // Pri base64 beremo prek dekodirnega toka. FromBase64Transform ima velikost
+                    // vhodnega bloka 1 bajt, zato CryptoStream iz spodnjega toka bere po 1 bajt -
+                    // BufferedStream poskrbi, da se ta mala branja strežejo iz pomnilnika, omrežje
+                    // pa se bere v blokih po DownloadBufferSize. Pri surovem prenosu beremo
+                    // neposredno iz omrežnega toka (brez režije).
+                    BufferedStream bufferedRawStream = null;
+                    FromBase64Transform base64Transform = null;
+                    CryptoStream cryptoStream = null;
+                    Stream readStream = rawStream;
+                    if (_useBase64)
                     {
-                        await fileStream.WriteAsync(buffer, 0, bytesRead);
-                        sha256.TransformBlock(buffer, 0, bytesRead, null, 0);
-                        bytesTransferred += bytesRead;
-
-                        if ((DateTime.Now - lastProgressReport).TotalMilliseconds >= Constants.PROGRESS_UPDATE_INTERVAL_MS)
-                        {
-                            lastProgressReport = DateTime.Now;
-                            var elapsed = (DateTime.Now - startTime).TotalSeconds;
-                            var speed = elapsed > 0 ? bytesTransferred / elapsed : 0;
-                            var filePercent = totalBytes > 0 ? (double)bytesTransferred / totalBytes : 0;
-                            var overallPercent = totalFiles > 0
-                                ? (int)((currentFileIndex + filePercent) / totalFiles * 100)
-                                : 0;
-
-                            //progress?.Report(UpdateProgress.CreateWithDetails(overallPercent,
-                            //    string.Format(SlovenianMessages.Downloading, entry.Path), entry.Path,
-                            //    bytesTransferred, totalBytes, speed, "HTTP"));
-                        }
+                        bufferedRawStream = new BufferedStream(rawStream, DownloadBufferSize);
+                        base64Transform = new FromBase64Transform();
+                        cryptoStream = new CryptoStream(bufferedRawStream, base64Transform, CryptoStreamMode.Read);
+                        readStream = cryptoStream;
                     }
 
-                    sha256.TransformFinalBlock(buffer, 0, 0);
-                    return ToHexString(sha256.Hash);
+                    try
+                    {
+                        var buffer = new byte[DownloadBufferSize];
+                        long bytesTransferred = 0;
+                        int bytesRead;
+
+                        while ((bytesRead = await readStream.ReadAsync(buffer, 0, buffer.Length)) > 0)
+                        {
+                            await fileStream.WriteAsync(buffer, 0, bytesRead);
+                            sha256.TransformBlock(buffer, 0, bytesRead, null, 0);
+                            bytesTransferred += bytesRead;
+
+                            if ((DateTime.Now - lastProgressReport).TotalMilliseconds >= Constants.PROGRESS_UPDATE_INTERVAL_MS)
+                            {
+                                lastProgressReport = DateTime.Now;
+                                var elapsed = (DateTime.Now - startTime).TotalSeconds;
+                                var speed = elapsed > 0 ? bytesTransferred / elapsed : 0;
+                                var filePercent = totalBytes > 0 ? (double)bytesTransferred / totalBytes : 0;
+                                var overallPercent = totalFiles > 0
+                                    ? (int)((currentFileIndex + filePercent) / totalFiles * 100)
+                                    : 0;
+
+                                //progress?.Report(UpdateProgress.CreateWithDetails(overallPercent,
+                                //    string.Format(SlovenianMessages.Downloading, entry.Path), entry.Path,
+                                //    bytesTransferred, totalBytes, speed, "HTTP"));
+                            }
+                        }
+
+                        sha256.TransformFinalBlock(buffer, 0, 0);
+                        return ToHexString(sha256.Hash);
+                    }
+                    finally
+                    {
+                        cryptoStream?.Dispose();
+                        base64Transform?.Dispose();
+                        bufferedRawStream?.Dispose();
+                    }
                 }
             }
         }

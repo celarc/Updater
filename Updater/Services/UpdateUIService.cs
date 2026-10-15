@@ -62,10 +62,7 @@ namespace Updater.Services
         {
             try
             {
-                var allReleases = await _gitHubUpdater.GetReleases();
-                var filteredReleases = isBeta
-                    ? allReleases.Where(r => r.Verzija.Contains("BETA")).ToList()
-                    : allReleases.Where(r => r.Verzija.Contains("STABLE")).ToList();
+                var filteredReleases = await _gitHubUpdater.GetReleases(isBeta, stopAtFirstMatch: true);
 
                 return filteredReleases.FirstOrDefault();
             }
